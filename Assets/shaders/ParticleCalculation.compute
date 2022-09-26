@@ -1,0 +1,137 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel UpdateParticles
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+struct Particle
+{
+    float3 position;
+    float3 velocity;
+    float3 color;
+};
+
+RWStructuredBuffer<Particle> particles;
+
+Texture2D NoiseTexture;
+
+SamplerState samplerNoiseTexture;
+
+float deltaTime;
+float time;
+float radius;
+float noise;
+float speed;
+int numParticles;
+uint rng_state;
+
+float3 box;
+
+
+// Binds particles to box. If particle leaves box it is teleported to other side.
+float3 BoundToBox(float3 pos)
+{
+    [branch] if(pos.x > box.x)
+    {
+       pos.x -= box.x;
+    }
+    [branch] if(pos.x < 0.0)
+    {
+        pos.x += box.x;
+    }
+    [branch] if(pos.y > box.y)
+    {
+        pos.y -= box.y;
+    }
+    [branch] if(pos.y < 0.0)
+    {
+        pos.y += box.y;
+    }
+    [branch] if(pos.z > box.z)
+    {
+        pos.z -= box.z;
+    }
+    [branch] if(pos.z < 0.0)
+    {
+        pos.z += box.z;
+    }
+
+    return pos;
+}
+
+
+uint rand_xorshift()
+{
+	// Xorshift algorithm from George Marsaglia's paper
+	rng_state ^= (rng_state << 13);
+	rng_state ^= (rng_state >> 17);
+	rng_state ^= (rng_state << 5);
+	return rng_state;
+}
+
+float rand_float(uint id)
+{
+    rng_state = id;
+	float tmp = (1.0 / 4294967296.0);
+	return float(rand_xorshift()) * tmp;
+}
+
+
+[numthreads(128,1,1)]
+void UpdateParticles (uint3 id : SV_DispatchThreadID)
+{
+    Particle particle = particles[id.x];
+    
+    float3 alignment = float3(particle.velocity);
+    for (uint i = 0; i < (uint)numParticles; i++)
+    {
+        if (id.x != i)
+        {
+            Particle tempParticle = particles[i];
+            float3 offset = tempParticle.position - particle.position;
+            float dist = length(offset);
+            if (dist < radius)
+            {
+                alignment += tempParticle.velocity;
+            }
+        }        
+    }
+    
+    // float rand_float_x =  rand_float(id.x * (uint)(time*1000));
+    // float rand_float_y =  rand_float(id.x * (uint)(time*1000));
+    // float rand_float_z =  rand_float((uint)(time*111));
+
+    // float2 pixel = float2(id.x % 512 / 512, (id.x / 512) % 512 / 512);
+    uint seed = floor(time*1000);
+
+    float rand_float_x = rand_float(seed + id.x);
+    float rand_float_y = rand_float(seed + id.x + 1);
+    float rand_float_z = rand_float(seed + id.x + 2);
+
+    // float3 random_vector = float3(rand_float_x, rand_float_y, rand_float_z);
+    float3 random_vector = float3(rand_float_x,0,0);
+    float3 new_velocity = normalize(alignment + random_vector * noise) * speed;
+    new_velocity += random_vector * noise;
+    
+
+
+
+    particle.velocity = new_velocity;
+    particle.position += particle.velocity * deltaTime;
+
+    particle.position = BoundToBox(particle.position);
+    
+    particles[id.x] = particle;
+    
+    // float3 velocity = particles[id.x].velocity;
+    // float velocityMagnitude = sqrt(dot(velocity, velocity));
+    // float uvx = velocityMagnitude * 0.025f;
+
+
+    // particles[id.x].color = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(uvx, 0.0f), 0.0f).rgb;
+    
+    // float distanceSqr = dot(particles[id.x].position, particles[id.x].position);
+    // float3 direction = cross(normalize(particles[id.x].position), float3(0.0f, 1.0f, 0.0f));
+    // particles[id.x].velocity += 1 / distanceSqr * direction * 2.0f;
+
+    // particles[id.x].position += particles[id.x].velocity * deltaTime;
+}
