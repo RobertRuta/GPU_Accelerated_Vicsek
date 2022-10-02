@@ -101,22 +101,26 @@ void UpdateParticles (uint3 id : SV_DispatchThreadID)
     // float rand_float_z =  rand_float((uint)(time*111));
 
     // float2 pixel = float2(id.x % 512 / 512, (id.x / 512) % 512 / 512);
-    uint seed = floor(time*1000);
+    // uint seed = floor(time*1000);
 
-    float rand_float_x = rand_float(seed + id.x);
-    float rand_float_y = rand_float(seed + id.x + 1);
-    float rand_float_z = rand_float(seed + id.x + 2);
+    // float rand_float_x = rand_float(seed + id.x);
+    // float rand_float_y = rand_float(seed + id.x + 1);
+    // float rand_float_z = rand_float(seed + id.x + 2);
 
     // float3 random_vector = float3(rand_float_x, rand_float_y, rand_float_z);
-    float3 random_vector = float3(rand_float_x,0,0);
-    float3 new_velocity = normalize(alignment + random_vector * noise) * speed;
-    new_velocity += random_vector * noise;
+    // float3 random_vector = float3(rand_float_x,0,0);
+    // float3 new_velocity = normalize(alignment + random_vector * noise) * speed;
+    // new_velocity += random_vector * noise;
+    // particle.color = float3(1,0,0);
     
+    
+    // particle.color = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(600.0/1024, 2.0/1024.0), 0.0f).rgb;
+    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(rand_float(id.x*time), rand_float(id.x*time*13)), 0.0f).rgb - float3(0.48362, 0.48342, 0.48362);
+    float3 velocity = normalize(normalize(alignment) + random_vector*noise);
 
 
-
-    particle.velocity = new_velocity;
-    particle.position += particle.velocity * deltaTime;
+    particle.velocity = velocity;
+    particle.position += particle.velocity * speed * deltaTime;
 
     particle.position = BoundToBox(particle.position);
     

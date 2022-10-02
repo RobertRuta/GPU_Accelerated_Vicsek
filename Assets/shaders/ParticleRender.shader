@@ -55,6 +55,7 @@ Shader "Custom/ParticleRender"
                     o.pos = mul(UNITY_MATRIX_P, mul(UNITY_MATRIX_V, float4(worldPosition, 1.0f)) + float4(quadPoint, 0.0f));
                     o.uv = quadPoints[id] + 0.5f;
                     o.color = float4(particles[inst].velocity + 1.0, 1.0f) * _Color;
+                    // o.color = float4(particles[inst].color, 1.0f) * _Color;
 
                     return o;
                 }

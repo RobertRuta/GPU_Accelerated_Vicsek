@@ -159,7 +159,7 @@ MonoBehaviour:
   neighbourRadius: 4
   noise: 0
   speed: 4
-  NoiseTexture: {fileID: 2800000, guid: 706dd61c02699224c85235eb82d45e6c, type: 3}
+  NoiseTexture: {fileID: 2800000, guid: 507d808cb2746db4cacdce124a802718, type: 3}
 --- !u!4 &554099522
 Transform:
   m_ObjectHideFlags: 0
