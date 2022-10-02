@@ -7,11 +7,15 @@ public class ParticleController : MonoBehaviour
 
     public ComputeShader ParticleCalcultion;
     public Material ParticleMaterial;
-    public int NumParticles = 500000;
+    [Range(0, 30000)]
+    public int NumParticles = 30000;
     // public float Radius = 10.0f;
     public Vector3 box;
+    [Range(0.0f, 10.0f)]
     public float neighbourRadius = 1.0f;
+    [Range(0.0f, 10.0f)]
     public float noise = 1.0f;
+    [Range(0.0f, 200.0f)]
     public float speed = 4.0f;
     public Texture2D NoiseTexture;
 
