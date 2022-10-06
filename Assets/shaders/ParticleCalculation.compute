@@ -115,8 +115,9 @@ void UpdateParticles (uint3 id : SV_DispatchThreadID)
     
     
     // particle.color = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(600.0/1024, 2.0/1024.0), 0.0f).rgb;
-    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(rand_float(id.x*time), rand_float(id.x*time*13)), 0.0f).rgb - float3(0.48362, 0.48342, 0.48362);
-    float3 velocity = normalize(normalize(alignment) + random_vector*noise);
+    float2 uvx = float2(rand_float(id.x*time), rand_float(id.x*time*137));
+    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
+    float3 velocity = normalize(alignment) + random_vector*noise;
 
 
     particle.velocity = velocity;
