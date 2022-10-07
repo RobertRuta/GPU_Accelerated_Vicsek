@@ -68,6 +68,32 @@ uint rand_xorshift()
 	return rng_state;
 }
 
+
+uint rotl(uint x, int k)
+{
+	return (x << k) | (x >> (32 - k));
+}
+
+
+uint4 s;
+
+
+uint xorshift128plus()
+{
+    const uint result = s.x + s.z;
+    const uint t = s.y << 9;
+
+	s.z ^= s.x;
+	s.w ^= s.y;
+	s.y ^= s.z;
+	s.x ^= s.w;
+
+	s.z ^= t;
+
+	s.w = rotl(s.w, 11);
+}
+
+
 float rand_float(uint id)
 {
     rng_state = id;
@@ -80,6 +106,7 @@ float rand_float(uint id)
 void UpdateParticles (uint3 id : SV_DispatchThreadID)
 {
     Particle particle = particles[id.x];
+    s = uint4(997219, 284261, 80251, 3319);
     
     float3 alignment = float3(particle.velocity);
     for (uint i = 0; i < (uint)numParticles; i++)
@@ -115,7 +142,7 @@ void UpdateParticles (uint3 id : SV_DispatchThreadID)
     
     
     // particle.color = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(600.0/1024, 2.0/1024.0), 0.0f).rgb;
-    float2 uvx = float2(rand_float(id.x*time), rand_float(id.x*time*137));
+    float2 uvx = float2(rand_float(id.x*time), rand_float(id.x*time*131071));
     float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
     float3 velocity = normalize(alignment) + random_vector*noise;
 
