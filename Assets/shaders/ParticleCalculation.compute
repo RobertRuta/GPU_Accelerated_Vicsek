@@ -59,6 +59,36 @@ float3 BoundToBox(float3 pos)
 }
 
 
+uint rotl(uint x, int k)
+{
+	return (x << k) | (x >> (32 - k));
+}
+
+uint s[4];
+
+uint xorshift128plus()
+{
+    // Initialise rng seeder with some big primes
+    s[0] = 27538393;
+    s[1] = 88067389;
+    s[2] = 67901627;
+    s[3] = 36402433;
+
+    rng_state = s[0] + s[3];
+    uint t = s[1] << 9;
+
+	s[2] ^= s[0];
+	s[3] ^= s[1];
+	s[1] ^= s[2];
+	s[0] ^= s[3];
+
+	s[2] ^= t;
+
+	s[3] = rotl(s[3], 11);
+    return rng_state;
+}
+
+
 uint rand_xorshift()
 {
 	// Xorshift algorithm from George Marsaglia's paper
@@ -66,31 +96,6 @@ uint rand_xorshift()
 	rng_state ^= (rng_state >> 17);
 	rng_state ^= (rng_state << 5);
 	return rng_state;
-}
-
-
-uint rotl(uint x, int k)
-{
-	return (x << k) | (x >> (32 - k));
-}
-
-
-uint4 s;
-
-
-uint xorshift128plus()
-{
-    const uint result = s.x + s.z;
-    const uint t = s.y << 9;
-
-	s.z ^= s.x;
-	s.w ^= s.y;
-	s.y ^= s.z;
-	s.x ^= s.w;
-
-	s.z ^= t;
-
-	s.w = rotl(s.w, 11);
 }
 
 
@@ -105,10 +110,11 @@ float rand_float(uint id)
 [numthreads(128,1,1)]
 void UpdateParticles (uint3 id : SV_DispatchThreadID)
 {
-    Particle particle = particles[id.x];
-    s = uint4(997219, 284261, 80251, 3319);
+    Particle particle = particles[id.x];   
+    
     
     float3 alignment = float3(particle.velocity);
+    // Compute alignments for each particle
     for (uint i = 0; i < (uint)numParticles; i++)
     {
         if (id.x != i)
@@ -123,47 +129,27 @@ void UpdateParticles (uint3 id : SV_DispatchThreadID)
         }        
     }
     
-    // float rand_float_x =  rand_float(id.x * (uint)(time*1000));
-    // float rand_float_y =  rand_float(id.x * (uint)(time*1000));
-    // float rand_float_z =  rand_float((uint)(time*111));
-
-    // float2 pixel = float2(id.x % 512 / 512, (id.x / 512) % 512 / 512);
-    // uint seed = floor(time*1000);
-
-    // float rand_float_x = rand_float(seed + id.x);
-    // float rand_float_y = rand_float(seed + id.x + 1);
-    // float rand_float_z = rand_float(seed + id.x + 2);
-
-    // float3 random_vector = float3(rand_float_x, rand_float_y, rand_float_z);
-    // float3 random_vector = float3(rand_float_x,0,0);
-    // float3 new_velocity = normalize(alignment + random_vector * noise) * speed;
-    // new_velocity += random_vector * noise;
-    // particle.color = float3(1,0,0);
-    
     
     // particle.color = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(600.0/1024, 2.0/1024.0), 0.0f).rgb;
-    float2 uvx = float2(rand_float(id.x*time), rand_float(id.x*time*131071));
+
+    // Use time as seed for random float generator
+    uint time_seed_1 = (uint)((time * 877) % numParticles);
+    uint time_seed_2 = (uint)((time * 349) % numParticles);
+    // Generate random floats
+    float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
+    // Use "random" floats to "randomly" sample noise texture
     float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
+    
+    
+    // Compute velocity based on alignment of neighbours and random vector
     float3 velocity = normalize(alignment) + random_vector*noise;
 
-
+    // Give particle object new velocity and position 
     particle.velocity = velocity;
     particle.position += particle.velocity * speed * deltaTime;
-
+    // Teleport agents from one end to box to other end
     particle.position = BoundToBox(particle.position);
     
+    // Update buffer particle position and velocity
     particles[id.x] = particle;
-    
-    // float3 velocity = particles[id.x].velocity;
-    // float velocityMagnitude = sqrt(dot(velocity, velocity));
-    // float uvx = velocityMagnitude * 0.025f;
-
-
-    // particles[id.x].color = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(uvx, 0.0f), 0.0f).rgb;
-    
-    // float distanceSqr = dot(particles[id.x].position, particles[id.x].position);
-    // float3 direction = cross(normalize(particles[id.x].position), float3(0.0f, 1.0f, 0.0f));
-    // particles[id.x].velocity += 1 / distanceSqr * direction * 2.0f;
-
-    // particles[id.x].position += particles[id.x].velocity * deltaTime;
 }
