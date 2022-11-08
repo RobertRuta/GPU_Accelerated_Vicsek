@@ -12,6 +12,8 @@ public class ParticleController : MonoBehaviour
     // public float Radius = 10.0f;
     public Vector3 box;
     [SerializeField]
+    private Vector3 grid;
+    [SerializeField]
     private Vector3Int gridDims;
     [Range(0.01f, 10.0f)]
     public float radius = 1.0f;
@@ -124,9 +126,9 @@ public class ParticleController : MonoBehaviour
     {
         float cellDim = radius;
         // Recalculate box dimensions
-        box.x = Mathf.Round(box.x / cellDim) * cellDim;
-        box.y = Mathf.Round(box.y / cellDim) * cellDim;
-        box.z = Mathf.Round(box.z / cellDim) * cellDim;
+        grid.x = Mathf.Ceil(box.x / cellDim) * cellDim;
+        grid.y = Mathf.Ceil(box.y / cellDim) * cellDim;
+        grid.z = Mathf.Ceil(box.z / cellDim) * cellDim;
         // Set grid dimensions
         gridDims = new Vector3Int((int) (box.x / cellDim) , (int) (box.y / cellDim), (int) (box.z / cellDim));
     }
