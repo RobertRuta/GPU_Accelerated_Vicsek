@@ -1,10 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using BufferSorter;
 
 public class ParticleController : MonoBehaviour
 {
 
+    public ComputeShader SortShader;
     public ComputeShader ParticleCalcultion;
     public Material ParticleMaterial;
     [Range(0, 30000)]
@@ -44,10 +46,14 @@ public class ParticleController : MonoBehaviour
     const int c_particleStride = 36;
     const int c_quadStride = 12;
 
+    Sorter sorter;
+
 
     // Start is called before the first frame update
     void Start()
     {
+        sorter = new Sorter(SortShader);
+
         m_updateParticleKernel = ParticleCalcultion.FindKernel("UpdateParticles");
         m_updateParticleKernel = ParticleCalcultion.FindKernel("UpdateGrid");
         m_particlesBuffer = new ComputeBuffer(NumParticles, c_particleStride);
@@ -65,7 +71,7 @@ public class ParticleController : MonoBehaviour
             particleArray[i].color = Vector3.one;
 
             pIDArray[i] = (uint) i;
-            gridIDArray[i] = 0;
+            gridIDArray[i] = (uint) Random.Range(0, 100000);
         }
 
 
@@ -73,6 +79,19 @@ public class ParticleController : MonoBehaviour
         m_particlesBuffer.SetData(particleArray);
         m_particleIDBuffer.SetData(pIDArray);
         m_gridIDBuffer.SetData(gridIDArray);
+
+        // sorter.Sort(m_particleIDBuffer, m_gridIDBuffer);
+
+        // uint[] values = new uint[NumParticles];
+        // uint[] keys = new uint[NumParticles];
+        // m_gridIDBuffer.GetData(values);
+        // m_particleIDBuffer.GetData(keys);
+        // for (int i = 0; i < 100; i++)
+        // {
+        //     print(i + " | " + keys[i] + " | " + values[keys[i]]);
+        // }
+
+
 
         m_quadPoints = new ComputeBuffer(6, c_quadStride);
 
@@ -91,6 +110,7 @@ public class ParticleController : MonoBehaviour
     {
         ComputeGrid();
 
+
         ParticleCalcultion.SetFloat("deltaTime", Time.deltaTime);
         ParticleCalcultion.SetFloat("time", Time.time);
         ParticleCalcultion.SetFloat("noise", noise);
@@ -100,25 +120,32 @@ public class ParticleController : MonoBehaviour
         ParticleCalcultion.SetInts("grid_dims", new [] {gridDims.x, gridDims.y, gridDims.z});
 
         int numberOfGroups = Mathf.CeilToInt((float)NumParticles / c_groupSize);
-        ParticleCalcultion.SetBuffer(m_updateParticleKernel, "particles", m_particlesBuffer);
-        ParticleCalcultion.SetBuffer(m_updateParticleKernel, "grid_ids", m_gridIDBuffer);
-        ParticleCalcultion.SetBuffer(m_updateParticleKernel, "particle_ids", m_particleIDBuffer);
-        ParticleCalcultion.SetTexture(m_updateParticleKernel, "NoiseTexture", NoiseTexture);
-        ParticleCalcultion.Dispatch(m_updateParticleKernel, numberOfGroups, 1, 1);
         
+
         ParticleCalcultion.SetBuffer(m_updateGridKernel, "grid_ids", m_gridIDBuffer);
         ParticleCalcultion.SetBuffer(m_updateGridKernel, "particle_ids", m_particleIDBuffer);
         ParticleCalcultion.SetBuffer(m_updateGridKernel, "particles", m_particlesBuffer);        
         ParticleCalcultion.SetTexture(m_updateGridKernel, "NoiseTexture", NoiseTexture);
+        print("Dispatching grid update.");
         ParticleCalcultion.Dispatch(m_updateGridKernel, numberOfGroups, 1, 1);
+        
+        ParticleCalcultion.SetBuffer(m_updateParticleKernel, "particles", m_particlesBuffer);
+        // ParticleCalcultion.SetBuffer(m_updateParticleKernel, "grid_ids", m_gridIDBuffer);
+        // ParticleCalcultion.SetBuffer(m_updateParticleKernel, "particle_ids", m_particleIDBuffer);
+        ParticleCalcultion.SetTexture(m_updateParticleKernel, "NoiseTexture", NoiseTexture);
+        print("Dispatching particle update.");
+        ParticleCalcultion.Dispatch(m_updateParticleKernel, numberOfGroups, 1, 1);
+        
+        print("Dispatching Sort update.");
+        sorter.Sort(m_particleIDBuffer, m_gridIDBuffer);
 
-        uint[] temp_g_array = new uint[NumParticles];
-        uint[] temp_p_array = new uint[NumParticles];
-        m_gridIDBuffer.GetData(temp_g_array);
-        m_particleIDBuffer.GetData(temp_p_array);
+        uint[] values = new uint[NumParticles];
+        uint[] keys = new uint[NumParticles];
+        m_gridIDBuffer.GetData(values);
+        m_particleIDBuffer.GetData(keys);
         for (int i = 0; i < 100; i++)
         {
-            print(" " + temp_p_array[i] + " | " + temp_g_array[temp_p_array[i]]);
+            print(i + " | " + keys[i] + " | " + values[keys[i]]);
         }
     }
 
