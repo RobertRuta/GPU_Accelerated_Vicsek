@@ -1,6 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel UpdateParticles
 #pragma kernel UpdateGrid
+#pragma kernel SortParticles
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -13,6 +14,7 @@ struct Particle
 
 RWStructuredBuffer<Particle> particles;
 RWStructuredBuffer<uint> particle_ids;
+RWStructuredBuffer<uint> keys;
 RWStructuredBuffer<uint> grid_ids;
 
 Texture2D NoiseTexture;
@@ -111,10 +113,48 @@ float rand_float(uint id)
 }
 
 
+uint CalcCellId(uint3 cell_xyz)
+{
+    uint X = cell_xyz.x;
+    uint Y = cell_xyz.y;
+    uint Z = cell_xyz.z;
+    return X + grid_dims.x * Y + grid_dims.x * grid_dims.y * Z;
+}
+
+
+uint3 CalcCellCoords(float3 pos)
+{
+    float cell_dim = radius;
+    // cell {0, 0, 0} is found at coordinate origin and has index 0
+    uint cell_X = (uint) (pos.x / cell_dim);
+    uint cell_Y = (uint) (pos.y / cell_dim);
+    uint cell_Z = (uint) (pos.z / cell_dim);
+    uint3 cell_xyz = {cell_X, cell_Y, cell_Z};
+
+    return cell_xyz;
+}
+
+
+// float3 NeighbourAlignment(uint p_id)
+// {
+//     float3 alignment = float3(0,0,0);
+//     float3 position = particles[p_id].position;
+//     float3 velocity = particles[p_id].velocity;
+//     uint home_cell_id = CalcCellId(CalcCellCoords(position));
+    
+//     uint current_cell_id = home_cell_id;
+//     for (uint i = 0; i < 27; i++)
+//     {
+//     }
+
+//     return alignment;
+// }
+
+// ----------------- Particle Update Code ------------------ //
 [numthreads(128,1,1)]
 void UpdateParticles (uint3 id : SV_DispatchThreadID)
 {
-    Particle particle = particles[id.x];   
+    Particle particle = particles[id.x];
     
     
     float3 alignment = float3(particle.velocity);
@@ -158,30 +198,8 @@ void UpdateParticles (uint3 id : SV_DispatchThreadID)
     particles[id.x] = particle;
 }
 
+
 // ----------------- Grid Update Code ------------------ //
-
-uint CalcCellId(uint3 cell_xyz)
-{
-    uint X = cell_xyz.x;
-    uint Y = cell_xyz.y;
-    uint Z = cell_xyz.z;
-    return X + grid_dims.x * Y + grid_dims.x * grid_dims.y * Z;
-}
-
-
-uint3 CalcCellCoords(float3 pos)
-{
-    float cell_dim = radius;
-    // cell {0, 0, 0} is found at coordinate origin and has index 0
-    uint cell_X = (uint) (pos.x / cell_dim);
-    uint cell_Y = (uint) (pos.y / cell_dim);
-    uint cell_Z = (uint) (pos.z / cell_dim);
-    uint3 cell_xyz = {cell_X, cell_Y, cell_Z};
-
-    return cell_xyz;
-}
-
-
 [numthreads(128,1,1)]
 void UpdateGrid (uint3 id : SV_DispatchThreadID)
 {
@@ -190,4 +208,15 @@ void UpdateGrid (uint3 id : SV_DispatchThreadID)
     uint3 cell_xyz = CalcCellCoords(pos);
     uint cell_id = CalcCellId(cell_xyz);
     grid_ids[p_id] = cell_id;
+}
+
+
+// ----------------- Particle Sort and Key Reset Code ------------------ //
+[numthreads(128,1,1)]
+void SortParticles (uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+
+    particle_ids[i] = keys[i];
+    keys[i] = i;
 }
