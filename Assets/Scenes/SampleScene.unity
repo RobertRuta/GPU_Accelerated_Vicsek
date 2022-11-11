@@ -159,7 +159,7 @@ MonoBehaviour:
   box: {x: 100, y: 100, z: 100}
   grid: {x: 0, y: 0, z: 0}
   gridDims: {x: 0, y: 0, z: 0}
-  radius: 1.92
+  radius: 3.59
   noise: 2.89
   speed: 10
   NoiseTexture: {fileID: 2800000, guid: 76af423c61bd1c849a885fd5ea3ca665, type: 3}

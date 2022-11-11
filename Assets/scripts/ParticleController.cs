@@ -141,38 +141,20 @@ public class ParticleController : MonoBehaviour
         print("Dispatching grid update.");
         ParticleCalcultion.Dispatch(m_updateGridKernel, numberOfGroups, 1, 1);
         
-        m_gridIDBuffer.GetData(values);
-        m_particleIDBuffer.GetData(particle_ids);
-        m_keyBuffer.GetData(keys);
-        for (int i = 0; i < 10; i++)
-        {
-            print("After Update | ParticleID["+ i + "]: " + particle_ids[i] + "| keys[" + i + "]: " + keys[i] + "| grid[" + i + "]: " + values[i] + "| grid[keys[" + i + "]]: " + values[keys[i]]  + "| grid[particle_id[" + i + "]]: " + values[particle_ids[i]]);
-        }
+        Debug("Grid Update");
 
         // ----------- Sort keys based on cells ascending ------------
         print("Dispatching Sort update.");
         sorter.Sort(m_keyBuffer, m_gridIDBuffer);
 
-        m_particleIDBuffer.GetData(particle_ids);
-        m_keyBuffer.GetData(keys);
-        m_gridIDBuffer.GetData(values);
-        for (int i = 0; i < 10; i++)
-        {
-            print("After Sort | ParticleID["+ i + "]: " + particle_ids[i] + "| keys[" + i + "]: " + keys[i] + "| grid[" + i + "]: " + values[i] + "| grid[keys[" + i + "]]: " + values[keys[i]]  + "| grid[particle_id[" + i + "]]: " + values[particle_ids[i]]);
-        }
+        Debug("Sort");
 
         // ----------- Sort particle ids based on keys ------------
         ParticleCalcultion.SetBuffer(m_particleSortKernel, "particle_ids", m_particleIDBuffer);
         ParticleCalcultion.SetBuffer(m_particleSortKernel, "keys", m_keyBuffer);
         ParticleCalcultion.Dispatch(m_particleSortKernel, numberOfGroups, 1, 1);
 
-        m_particleIDBuffer.GetData(particle_ids);
-        m_keyBuffer.GetData(keys);
-        m_gridIDBuffer.GetData(values);
-        for (int i = 0; i < 10; i++)
-        {
-            print("After Reorganise | ParticleID["+ i + "]: " + particle_ids[i] + "| keys[" + i + "]: " + keys[i] + "| grid[" + i + "]: " + values[i] + "| grid[keys[" + i + "]]: " + values[keys[i]]  + "| grid[particle_id[" + i + "]]: " + values[particle_ids[i]]);
-        }
+        Debug("Reorganise");
 
         // ----------- Update Particles ------------
         ParticleCalcultion.SetBuffer(m_updateParticleKernel, "particles", m_particlesBuffer);
@@ -182,6 +164,21 @@ public class ParticleController : MonoBehaviour
         ParticleCalcultion.SetTexture(m_updateParticleKernel, "NoiseTexture", NoiseTexture);
         print("Dispatching particle update.");
         ParticleCalcultion.Dispatch(m_updateParticleKernel, numberOfGroups, 1, 1);
+    }
+
+
+    void Debug(string after)
+    {
+        uint[] values = new uint[NumParticles];
+        uint[] particle_ids = new uint[NumParticles];
+        uint[] keys = new uint[NumParticles];
+        m_particleIDBuffer.GetData(particle_ids);
+        m_keyBuffer.GetData(keys);
+        m_gridIDBuffer.GetData(values);
+        for (int i = 0; i < 10; i++)
+        {
+            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]]);
+        }  
     }
 
     void ComputeGrid()
