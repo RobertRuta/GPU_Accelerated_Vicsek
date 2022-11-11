@@ -94,7 +94,7 @@ public class ParticleController : MonoBehaviour
         // uint[] keys = new uint[NumParticles];
         // m_gridIDBuffer.GetData(values);
         // m_particleIDBuffer.GetData(keys);
-        // for (int i = 0; i < 100; i++)
+        // for (int i = 0; i < NumParticles; i++)
         // {
         //     print(i + " | " + keys[i] + " | " + values[keys[i]]);
         // }
