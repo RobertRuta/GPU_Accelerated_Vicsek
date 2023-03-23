@@ -32,12 +32,9 @@ public class ParticleController : MonoBehaviour
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct Particle
     {
-        public Vector3 position;
-        public Vector3 velocity;
-        public Vector3 color;
-        public Vector4 padding;
-        // public Vector3 padding2;
-        // public float padding3;
+        public Vector4 position;
+        public Vector4 velocity;
+        public float padding;
     };
 
 
@@ -65,9 +62,8 @@ public class ParticleController : MonoBehaviour
         for (int i = 0; i < NumParticles; i++)
         {
             // particleArray[i].position = new Vector3(Random.Range(0, box.x), Random.Range(0, box.y), Random.Range(0, box.z));
-            particleArray[i].position = new Vector3(50,50,50);
-            particleArray[i].velocity = Vector3.one * speed;
-            // particleArray[i].michael = 1;
+            particleArray[i].position = new Vector4(50,50,50,0);
+            particleArray[i].velocity = Vector4.one * speed;
 
             pIDArray[i] = (uint) i;
             gridIDArray[i] = 0;

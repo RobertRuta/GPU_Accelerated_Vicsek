@@ -45,6 +45,22 @@ x=3, y=3, z=2: 68 -> type 2 glitch
 x=3, y=3, z=3: 72 -> type 0.x glitch
 x=3, y=3, z=4: 76 -> type 2 glitch
 
+
+struct Particle
+{
+    float4 pos;
+    float4 vel;
+    floatx padding;
+};
+32 -> type 0 glitch
+
+
+
+
+
+
+--------------------- LEGEND ----------------------
+
 type 0 - 3D but clustering at origin
 type 0.1 - 3D but static clustering at origin
 type 0.x - 3D but incorrect

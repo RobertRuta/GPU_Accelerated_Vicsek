@@ -2,16 +2,14 @@
 #pragma kernel UpdateParticles
 #pragma kernel UpdateGrid
 
+#define THREAD_GROUPS 128
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 struct Particle
 {
-    float3 position;
-    float3 velocity;
-    float3 color;
-    float4 padding;
-    // float3 padding2;
-    // float padding3;
+    float4 position;
+    float4 velocity;
+    float padding;
 };
 
 RWStructuredBuffer<Particle> particles;
@@ -21,6 +19,7 @@ RWStructuredBuffer<uint> grid_ids;
 Texture2D NoiseTexture;
 
 SamplerState samplerNoiseTexture;
+
 
 float deltaTime;
 float time;
@@ -114,24 +113,24 @@ float rand_float(uint id)
 }
 
 
-[numthreads(128,1,1)]
+[numthreads(THREAD_GROUPS,1,1)]
 void UpdateParticles (uint3 id : SV_DispatchThreadID)
 {
     Particle particle = particles[id.x];   
     
     
-    float3 alignment = float3(particle.velocity);
+    float3 alignment = particle.velocity.xyz;
     // Compute alignments for each particle
     for (uint i = 0; i < (uint)numParticles; i++)
     {
         if (id.x != i)
         {
             Particle tempParticle = particles[i];
-            float3 offset = tempParticle.position - particle.position;
+            float3 offset = tempParticle.position.xyz - particle.position.xyz;
             float dist = length(offset);
             if (dist < radius)
             {
-                alignment += tempParticle.velocity;
+                alignment += tempParticle.velocity.xyz;
             }
         }        
     }
@@ -152,10 +151,10 @@ void UpdateParticles (uint3 id : SV_DispatchThreadID)
     float3 velocity = normalize(alignment) + random_vector*noise;
 
     // Give particle object new velocity and position 
-    particle.velocity = velocity;
-    particle.position += particle.velocity * speed * deltaTime;
+    particle.velocity.xyz = velocity;
+    particle.position.xyz += particle.velocity.xyz * speed * deltaTime;
     // Teleport agents from one end to box to other end
-    particle.position = BoundToBox(particle.position);
+    particle.position.xyz = BoundToBox(particle.position.xyz);
     
     // Update buffer particle position and velocity
     particles[id.x] = particle;
@@ -185,11 +184,11 @@ uint3 CalcCellCoords(float3 pos)
 }
 
 
-[numthreads(128,1,1)]
+[numthreads(THREAD_GROUPS,1,1)]
 void UpdateGrid (uint3 id : SV_DispatchThreadID)
 {
     uint p_id = particle_ids[id.x];
-    float3 pos = particles[p_id].position;
+    float3 pos = particles[p_id].position.xyz;
     uint3 cell_xyz = CalcCellCoords(pos);
     uint cell_id = CalcCellId(cell_xyz);
     grid_ids[p_id] = cell_id;
