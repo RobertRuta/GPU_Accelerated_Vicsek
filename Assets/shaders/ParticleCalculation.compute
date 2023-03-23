@@ -9,6 +9,9 @@ struct Particle
     float3 position;
     float3 velocity;
     float3 color;
+    float4 padding;
+    // float3 padding2;
+    // float padding3;
 };
 
 RWStructuredBuffer<Particle> particles;

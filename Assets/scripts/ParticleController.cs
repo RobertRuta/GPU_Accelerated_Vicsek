@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEngine;
 
 public class ParticleController : MonoBehaviour
@@ -28,12 +29,15 @@ public class ParticleController : MonoBehaviour
     private int m_updateGridKernel;
 
 
-
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct Particle
     {
         public Vector3 position;
         public Vector3 velocity;
         public Vector3 color;
+        public Vector4 padding;
+        // public Vector3 padding2;
+        // public float padding3;
     };
 
 
@@ -41,7 +45,7 @@ public class ParticleController : MonoBehaviour
     ComputeBuffer m_particleIDBuffer;
     ComputeBuffer m_gridIDBuffer;
     ComputeBuffer m_quadPoints;
-    const int c_particleStride = 36;
+    int c_particleStride = Marshal.SizeOf(typeof(Particle));
     const int c_quadStride = 12;
 
 
@@ -60,9 +64,10 @@ public class ParticleController : MonoBehaviour
 
         for (int i = 0; i < NumParticles; i++)
         {
-            particleArray[i].position = new Vector3(Random.Range(0, box.x), Random.Range(0, box.y), Random.Range(0, box.z));
-            particleArray[i].velocity = Random.insideUnitSphere * speed;
-            particleArray[i].color = Vector3.one;
+            // particleArray[i].position = new Vector3(Random.Range(0, box.x), Random.Range(0, box.y), Random.Range(0, box.z));
+            particleArray[i].position = new Vector3(50,50,50);
+            particleArray[i].velocity = Vector3.one * speed;
+            // particleArray[i].michael = 1;
 
             pIDArray[i] = (uint) i;
             gridIDArray[i] = 0;
@@ -160,8 +165,8 @@ public class ParticleController : MonoBehaviour
     void OnDestroy()
     {
         m_particlesBuffer.Dispose();
+        m_particleIDBuffer.Dispose();
+        m_gridIDBuffer.Dispose();
         m_quadPoints.Dispose();
     }
-
-
 }

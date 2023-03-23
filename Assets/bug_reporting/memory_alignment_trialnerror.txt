@@ -1,0 +1,53 @@
+struct Particle
+{
+    float3 pos;
+    float3 vel;
+    float3 col;
+    floatx padding;
+};
+36 -> success
+
+x=1: 40 -> type 1 glitch
+x=2: 44 -> type 2 glitch 
+x=3: 48 -> success
+x=4: 52 -> type 2 glitch
+
+inital theory: stride must be a multiple of 12 and not 16
+
+
+struct Particle
+{
+    float3 pos;
+    float3 vel;
+    float3 col;
+    floatx padding;
+    floaty padding2;
+};
+
+x=3, y=1: 52 -> type 2 glitch
+x=3, y=2: 56 -> type 1 glitch
+x=3, y=3: 60 -> type 0 glitch
+x=3, y=4: 60 -> type 0 glitch
+
+
+struct Particle
+{
+    float3 pos;
+    float3 vel;
+    float3 col;
+    floatx padding;
+    floaty padding2;
+    floatz padding3;
+};
+
+x=3, y=3, z=1: 64 -> type 0.1 glitch
+x=3, y=3, z=2: 68 -> type 2 glitch
+x=3, y=3, z=3: 72 -> type 0.x glitch
+x=3, y=3, z=4: 76 -> type 2 glitch
+
+type 0 - 3D but clustering at origin
+type 0.1 - 3D but static clustering at origin
+type 0.x - 3D but incorrect
+type 1 - 2D
+type 2 - 1D
+success - simulation works as intended

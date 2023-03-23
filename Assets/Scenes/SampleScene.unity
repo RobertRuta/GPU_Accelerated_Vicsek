@@ -154,8 +154,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ParticleCalcultion: {fileID: 7200000, guid: ef88aab1c25eba24fbcb3514e67700eb, type: 3}
   ParticleMaterial: {fileID: 2100000, guid: 7571028eea8f53a4ea5c3ca716378deb, type: 2}
-  NumParticles: 30000
+  NumParticles: 10272
   box: {x: 100, y: 100, z: 100}
+  grid: {x: 0, y: 0, z: 0}
   gridDims: {x: 0, y: 0, z: 0}
   radius: 1
   noise: 2.89
