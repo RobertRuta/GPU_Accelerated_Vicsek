@@ -9,7 +9,6 @@ struct Particle
 {
     float4 position;
     float4 velocity;
-    float padding;
 };
 
 RWStructuredBuffer<Particle> particles;

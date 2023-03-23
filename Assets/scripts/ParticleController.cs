@@ -34,7 +34,6 @@ public class ParticleController : MonoBehaviour
     {
         public Vector4 position;
         public Vector4 velocity;
-        public float padding;
     };
 
 
@@ -61,8 +60,8 @@ public class ParticleController : MonoBehaviour
 
         for (int i = 0; i < NumParticles; i++)
         {
-            // particleArray[i].position = new Vector3(Random.Range(0, box.x), Random.Range(0, box.y), Random.Range(0, box.z));
-            particleArray[i].position = new Vector4(50,50,50,0);
+            particleArray[i].position = new Vector4(Random.Range(0, box.x), Random.Range(0, box.y), Random.Range(0, box.z), 0);
+            // particleArray[i].position = new Vector4(50,50,50,0);
             particleArray[i].velocity = Vector4.one * speed;
 
             pIDArray[i] = (uint) i;
