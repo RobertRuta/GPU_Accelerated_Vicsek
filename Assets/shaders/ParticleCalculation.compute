@@ -25,7 +25,7 @@ float time;
 float radius;
 float noise;
 float speed;
-int numParticles;
+int num_particles;
 uint rng_state;
 
 float3 box;
@@ -120,7 +120,7 @@ void UpdateParticles (uint3 id : SV_DispatchThreadID)
     
     float3 alignment = particle.velocity.xyz;
     // Compute alignments for each particle
-    for (uint i = 0; i < (uint)numParticles; i++)
+    for (uint i = 0; i < (uint)num_particles; i++)
     {
         if (id.x != i)
         {
@@ -134,12 +134,10 @@ void UpdateParticles (uint3 id : SV_DispatchThreadID)
         }        
     }
     
-    
-    // particle.color = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(600.0/1024, 2.0/1024.0), 0.0f).rgb;
 
     // Use time as seed for random float generator
-    uint time_seed_1 = (uint)((time * 877) % numParticles);
-    uint time_seed_2 = (uint)((time * 349) % numParticles);
+    uint time_seed_1 = (uint)((time * 877) % num_particles);
+    uint time_seed_2 = (uint)((time * 349) % num_particles);
     // Generate random floats
     float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
     // Use "random" floats to "randomly" sample noise texture
