@@ -1,0 +1,19 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ParticleUpdate
+
+struct Particle
+{
+    float4 positions;
+    float4 velocity;
+};
+
+RWStructuredBuffer<Particle> particles;
+
+[numthreads(128,1,1)]
+void ParticleUpdate (uint3 id : SV_DispatchThreadID)
+{
+    Particle particle = particles[id.x];
+    particle.velocity = float4(1,1,1,0);
+    
+    particles[id.x] = particle;
+}
