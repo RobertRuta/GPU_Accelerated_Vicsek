@@ -1,19 +1,21 @@
 // Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel ParticleUpdate
+#pragma kernel AgentUpdate
 
-struct Particle
+struct Agent
 {
-    float4 positions;
+    float4 position;
     float4 velocity;
 };
 
-RWStructuredBuffer<Particle> particles;
+float dt;
+RWStructuredBuffer<Agent> agents;
 
 [numthreads(128,1,1)]
-void ParticleUpdate (uint3 id : SV_DispatchThreadID)
+void AgentUpdate (uint3 id : SV_DispatchThreadID)
 {
-    Particle particle = particles[id.x];
-    particle.velocity = float4(1,1,1,0);
+    Agent agent = agents[id.x];
+    agent.velocity = float4(1,1,1,0);
+    agent.position = agent.position + agent.velocity*dt;
     
-    particles[id.x] = particle;
+    agents[id.x] = agent;
 }
