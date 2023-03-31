@@ -235,8 +235,6 @@ GameObject:
   m_Component:
   - component: {fileID: 895109123}
   - component: {fileID: 895109124}
-  - component: {fileID: 895109125}
-  - component: {fileID: 895109126}
   m_Layer: 0
   m_Name: sim
   m_TagString: Untagged
@@ -266,46 +264,15 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 895109121}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 783cfc38506136743858f9bbf8a0e8e7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  AgentComputeShader: {fileID: 7200000, guid: 0b05402d7cd126d419a4316b3c0043d4, type: 3}
-  agent_count: 10000
-  box_width: 2
-  instanceMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  instanceMaterial: {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
---- !u!114 &895109125
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 895109121}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c80756f9e128594e877e51787e5cca9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  instanceCount: 1000000
-  instanceMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  instanceMaterial: {fileID: 2100000, guid: 241a39a5d04c9044ab5e3fe63b65cdb6, type: 2}
-  subMeshIndex: 0
---- !u!114 &895109126
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 895109121}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9ad5bc8534baa0a49b627048e25afc18, type: 3}
+  m_Script: {fileID: 11500000, guid: a8f1c8aef0844a14daafd442a5a30da3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  instanceCount: 1000
-  instanceMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  instanceMaterial: {fileID: 2100000, guid: 37fa600f3acec284592747f742f5b1fd, type: 2}
+  particleCount: 100000
+  particleMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  particleMaterial: {fileID: 2100000, guid: c203a09b5125471448363d6d4116495a, type: 2}
   subMeshIndex: 0
-  testshader: {fileID: 7200000, guid: 746825d349506cf4980e3711173388f8, type: 3}
+  ParticleCompute: {fileID: 7200000, guid: 81c4e4eac73cefa4d84822e9f17778bf, type: 3}
+  radius: 5
+  speed: 5
