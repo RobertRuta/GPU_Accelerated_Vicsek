@@ -8,50 +8,41 @@ struct Particle
 };
 
 RWStructuredBuffer<Particle> particleBuffer;
+RWStructuredBuffer<uint> cellIDs;
+RWStructuredBuffer<uint> particleIDs;
 
 float dt;
 int particle_count;
 float radius;
 float speed;
 float3 box;
-
-// void BoundToBox(inout float3 pos, float3 box_dims, float3 box_origin)
-// {
-//     float3 boxpos = box_dims / 2 + box_origin;
-//     if (abs(pos.x) > boxpos.x)
-//         -abs(pos.x - box_origin.x) / (pos.x - box_origin.x) * (pos.x - boxpos.x);
-//     if (abs(pos.y) > boxpos.y)
-//         -abs(pos.y - box_origin.y) / (pos.y - box_origin.y) * (pos.y - boxpos.y);
-//     if (abs(pos.x) > boxpos.x)
-//         -(pos.z - box_origin.z) / abs(pos.z - box_origin.z) * (pos.z - boxpos.z);
+uint3 grid_dims;
 
 
-//     if 
-// }
 
 void BoundToBox(inout float3 pos)
 {
-    [branch] if(pos.x > box.x)
+    if(pos.x > box.x)
     {
        pos.x -= box.x;
     }
-    [branch] if(pos.x < 0.0)
+    if(pos.x < 0.0)
     {
         pos.x += box.x;
     }
-    [branch] if(pos.y > box.y)
+    if(pos.y > box.y)
     {
         pos.y -= box.y;
     }
-    [branch] if(pos.y < 0.0)
+    if(pos.y < 0.0)
     {
         pos.y += box.y;
     }
-    [branch] if(pos.z > box.z)
+    if(pos.z > box.z)
     {
         pos.z -= box.z;
     }
-    [branch] if(pos.z < 0.0)
+    if(pos.z < 0.0)
     {
         pos.z += box.z;
     }
@@ -60,10 +51,30 @@ void BoundToBox(inout float3 pos)
 }
 
 
+uint CalcCellId(uint3 cell_xyz)
+{
+    uint X = cell_xyz.x;
+    uint Y = cell_xyz.y;
+    uint Z = cell_xyz.z;
+    return X + grid_dims.x * Y + grid_dims.x * grid_dims.y * Z;
+}
+
+uint3 CalcCellCoords(float3 pos)
+{
+    float cell_dim = radius;
+    // cell {0, 0, 0} is found at coordinate origin and has index 0
+    uint cell_X = (uint) (pos.x / cell_dim);
+    uint cell_Y = (uint) (pos.y / cell_dim);
+    uint cell_Z = (uint) (pos.z / cell_dim);
+    uint3 cell_xyz = {cell_X, cell_Y, cell_Z};
+
+    return cell_xyz;
+}
+
+
 [numthreads(128,1,1)]
 void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 {
-    // TODO: insert actual code here!
     Particle particle = particleBuffer[id.x];
 
     float3 summed_velocity = float3(0,0,0);
@@ -86,4 +97,10 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     BoundToBox(particle.position.xyz);
     particleBuffer[id.x] = particle;
+
+
+    // Grid Update
+    uint3 cell_pos = CalcCellCoords(particle.position.xyz);
+    uint cell_id = CalcCellId(cell_pos);
+    cellIDs[id.x] = cell_id;
 }

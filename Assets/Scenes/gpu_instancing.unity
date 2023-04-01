@@ -269,7 +269,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8f1c8aef0844a14daafd442a5a30da3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleCount: 100000
+  particleCount: 50000
   particleMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
   particleMaterial: {fileID: 2100000, guid: c203a09b5125471448363d6d4116495a, type: 2}
   subMeshIndex: 0

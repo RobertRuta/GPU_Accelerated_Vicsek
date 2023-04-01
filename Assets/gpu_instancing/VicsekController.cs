@@ -14,10 +14,12 @@ public class VicsekController : MonoBehaviour {
     
     public ComputeShader ParticleCompute;
     int particleUpdateKernel;
+    int gridUpdateKernel;
     int group_count;
     public float radius = 5;
     public float speed = 5;
     Vector3 box = new Vector3(100f, 100f, 100f);
+    Vector3 grid_dims;
     struct Particle
     {
         public Vector4 position;
@@ -25,22 +27,30 @@ public class VicsekController : MonoBehaviour {
     }
 
     private ComputeBuffer particleBuffer;
+    private ComputeBuffer particleIDBuffer;
+    private ComputeBuffer cellIDBuffer;
+
 
     void Start() {
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
         particleUpdateKernel = ParticleCompute.FindKernel("ParticleUpdate");
-        UpdateBuffers();
+        InitiateSim();
     }
 
     void Update() {
         // Update starting position buffer
         if (cachedParticleCount != particleCount || cachedSubMeshIndex != subMeshIndex)
-            UpdateBuffers();
+            InitiateSim();
 
         // Pad input
         if (Input.GetAxisRaw("Horizontal") != 0.0f)
             particleCount = (int)Mathf.Clamp(particleCount + Input.GetAxis("Horizontal") * 40000, 1.0f, 5000000.0f);
 
+
+        // Update Grid
+        // ParticleCompute.Dispatch(gridUpdateKernel, group_count, 1, 1);
+        
+        // Update Particle Positions
         ParticleCompute.SetFloat("radius", radius);
         ParticleCompute.SetFloat("speed", speed);
         ParticleCompute.SetFloat("dt", Time.deltaTime);
@@ -55,9 +65,17 @@ public class VicsekController : MonoBehaviour {
         particleCount = (int)GUI.HorizontalSlider(new Rect(25, 20, 200, 30), (float)particleCount, 1.0f, 5000000.0f);
     }
 
-    void UpdateBuffers() {
+    void InitiateSim() {
         // Ensure submesh index is in range
         group_count = Mathf.CeilToInt((float)particleCount / 128);
+        
+        ParticleCompute.SetInt("particle_count", particleCount);
+        ParticleCompute.SetFloats("box", new [] {box.x, box.y, box.z});
+
+        box = new Vector3((int)(box.x/radius) * radius, (int)(box.y/radius) * radius, (int)(box.z/radius) * radius);
+        grid_dims = box/radius + Vector3.one;
+        ParticleCompute.SetInts("grid_dims", new [] {(int)grid_dims.x, (int)grid_dims.y, (int)grid_dims.z});
+
         if (particleMesh != null)
             subMeshIndex = Mathf.Clamp(subMeshIndex, 0, particleMesh.subMeshCount - 1);
 
@@ -65,6 +83,8 @@ public class VicsekController : MonoBehaviour {
         if (particleBuffer != null)
             particleBuffer.Release();
         particleBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(Particle)));
+        cellIDBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(uint)));
+        particleIDBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(uint)));
         Particle[] particles = new Particle[particleCount];
         for (int i = 0; i < particleCount; i++) {
             float size = Random.Range(0.05f, 0.25f);
@@ -74,10 +94,11 @@ public class VicsekController : MonoBehaviour {
         }
         particleBuffer.SetData(particles);
 
-        ParticleCompute.SetInt("particle_count", particleCount);
-        ParticleCompute.SetFloats("box", new [] {box.x, box.y, box.z});
-        ParticleCompute.SetBuffer(particleUpdateKernel, "particleBuffer", particleBuffer);
-        
+        // ParticleCompute.SetBuffer(particleUpdateKernel, "particleBuffer", particleBuffer);
+        ParticleCompute.SetBuffer(gridUpdateKernel, "particleIDs", particleIDBuffer);
+        ParticleCompute.SetBuffer(gridUpdateKernel, "cellIDs", cellIDBuffer);
+        ParticleCompute.SetBuffer(gridUpdateKernel, "particleBuffer", particleBuffer);
+
         particleMaterial.SetBuffer("particleBuffer", particleBuffer);
 
         // Indirect args
