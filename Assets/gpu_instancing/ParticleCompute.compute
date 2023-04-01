@@ -1,5 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel ParticleUpdate
+#pragma kernel RearrangeParticleIDs
+#pragma kernel BuildStartEndIDs
 
 struct Particle
 {
@@ -10,6 +12,8 @@ struct Particle
 RWStructuredBuffer<Particle> particleBuffer;
 RWStructuredBuffer<uint> cellIDs;
 RWStructuredBuffer<uint> particleIDs;
+RWStructuredBuffer<uint> keys;
+RWStructuredBuffer<uint2> startendIDs;
 
 float dt;
 int particle_count;
@@ -86,7 +90,7 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
         float distance = length(neighbour.position.xyz - particle.position.xyz);
         if (distance < radius)
         {
-            summed_velocity += neighbour.velocity;
+            summed_velocity += neighbour.velocity.xyz;
         }
     }
     float3 new_velocity = normalize(summed_velocity) * speed;
@@ -103,4 +107,28 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
     uint3 cell_pos = CalcCellCoords(particle.position.xyz);
     uint cell_id = CalcCellId(cell_pos);
     cellIDs[id.x] = cell_id;
+}
+
+
+[numthreads(128,1,1)]
+void RearrangeParticleIDs (uint3 id : SV_DispatchThreadID)
+{
+    particleIDs[id.x] = particleIDs[keys[id.x]];
+    keys[id.x] = id.x;
+}
+
+
+[numthreads(128,1,1)]
+void BuildStartEndIDs (uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    uint p_id = particleIDs[i];
+    uint current = cellIDs[p_id];
+    uint prev = (i != 0) ? cellIDs[particleIDs[i-1]] : cellIDs[particleIDs[(uint)particle_count-1]];
+    uint next = (i != (uint)particle_count-1) ? cellIDs[particleIDs[i+1]] : cellIDs[particleIDs[0]];
+
+    if (current != prev)
+        startendIDs[current].x = i;
+    if (current != next)
+        startendIDs[current].y = i;
 }
