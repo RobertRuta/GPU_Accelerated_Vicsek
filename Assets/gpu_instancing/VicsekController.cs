@@ -45,6 +45,9 @@ public class VicsekController : MonoBehaviour {
     int startend_group_count;
     ComputeBuffer cellBuffer;
 
+    public float noise = 1.0f;
+    public Texture2D NoiseTexture;
+
 
     void Start() {
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
@@ -69,32 +72,34 @@ public class VicsekController : MonoBehaviour {
         // Update compute shader variables
         ParticleCompute.SetFloat("speed", speed);
         ParticleCompute.SetFloat("dt", Time.deltaTime);
-        Debug("start");
+        ParticleCompute.SetFloat("time", Time.time);
+        ParticleCompute.SetFloat("noise", noise);
+        //Debug("start");
 
         // Sort keys such that cellIDBuffer is ascending
         sorter.Sort(keyBuffer, cellIDBuffer);
-        Debug("Sort");
+        //Debug("Sort");
 
         // Rearrange particleIDsBuffer based on keyBuffer
         // ParticleCompute.SetBuffer(particleRearrangeKernel, "keys", keyBuffer);
         ParticleCompute.SetBuffer(particleRearrangeKernel, "particleIDs", particleIDBuffer);
         ParticleCompute.Dispatch(particleRearrangeKernel, group_count, 1, 1);
-        Debug("Rearrange");
+        //Debug("Rearrange");
         
         // Build start end indices
         startend_group_count = Mathf.CeilToInt(grid_dims.x*grid_dims.y*grid_dims.z / 128);
         ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
-        Debug("Building StartEnd Indices");
+        //Debug("Building StartEnd Indices");
 
         
         // Update Particle Positions
         // ParticleCompute.Dispatch(particleUpdateKernel, group_count, 1, 1);
         ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
-        Debug("Particle Update");
+        //Debug("Particle Update");
 
         // Render
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
-        Debug("After Draw");
+        //Debug("After Draw");
     }
 
 
@@ -242,6 +247,7 @@ public class VicsekController : MonoBehaviour {
         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "particleIDs", particleIDBuffer);
         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "cellIDs", cellIDBuffer);
         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "cellBuffer", cellBuffer);
+        ParticleCompute.SetTexture(optimizedParticleUpdateKernel, "NoiseTexture", NoiseTexture);
     }
 
     void InitiateArgs()
