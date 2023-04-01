@@ -109,7 +109,7 @@ public class VicsekController : MonoBehaviour {
 
         InitiateBuffers();
 
-        sorter = new Sorter(sortShader);
+        InitiateSorter();
         InitiateSimParams();
         InitiateRearrange(keyBuffer, particleIDBuffer);
         InitiateStartEndIDs(startendIDBuffer, particleIDBuffer, cellIDBuffer);
@@ -165,6 +165,13 @@ public class VicsekController : MonoBehaviour {
 
     }
 
+    void InitiateSorter()
+    {
+        if (sorter != null)
+            sorter.Dispose();
+        sorter = new Sorter(sortShader);
+    }
+    
     void InitiateSimParams()
     {
         ParticleCompute.SetInt("particle_count", particleCount);
