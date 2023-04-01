@@ -234,6 +234,9 @@ public class VicsekController : MonoBehaviour {
         if (particleIDBuffer != null)
             particleIDBuffer.Release();
         particleIDBuffer = null;
+        
+        if (sorter != null)
+            sorter.Dispose();
 
         if (startendIDBuffer != null)
             startendIDBuffer.Release();
