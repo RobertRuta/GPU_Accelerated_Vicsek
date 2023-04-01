@@ -1,5 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel ParticleUpdate
+#pragma kernel OptimizedParticleUpdate
 #pragma kernel RearrangeParticleIDs
 #pragma kernel BuildStartEndIDs
 
@@ -55,7 +56,7 @@ void BoundToBox(inout float3 pos)
 }
 
 
-uint CalcCellId(uint3 cell_xyz)
+uint CalcCellId(int3 cell_xyz)
 {
     uint X = cell_xyz.x;
     uint Y = cell_xyz.y;
@@ -63,14 +64,14 @@ uint CalcCellId(uint3 cell_xyz)
     return X + grid_dims.x * Y + grid_dims.x * grid_dims.y * Z;
 }
 
-uint3 CalcCellCoords(float3 pos)
+int3 CalcCellCoords(float3 pos)
 {
     float cell_dim = radius;
     // cell {0, 0, 0} is found at coordinate origin and has index 0
-    uint cell_X = (uint) (pos.x / cell_dim);
-    uint cell_Y = (uint) (pos.y / cell_dim);
-    uint cell_Z = (uint) (pos.z / cell_dim);
-    uint3 cell_xyz = {cell_X, cell_Y, cell_Z};
+    int cell_X = (int) (pos.x / cell_dim);
+    int cell_Y = (int) (pos.y / cell_dim);
+    int cell_Z = (int) (pos.z / cell_dim);
+    int3 cell_xyz = int3(cell_X, cell_Y, cell_Z);
 
     return cell_xyz;
 }
@@ -111,9 +112,52 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 
 
 [numthreads(128,1,1)]
+void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
+{
+    uint p_id = particleIDs[id.x];
+    Particle particle = particleBuffer[p_id];
+    int3 cell_pos = CalcCellCoords(particle.position.xyz);
+    uint cell_id = CalcCellId(cell_pos);
+
+    float3 summed_velocity = particle.velocity.xyz;
+    // Loop through neighbouring cells
+    for (int x = -1; x <= 1; x++){
+        for (int y = -1; y <= 1; y++){
+            for (int z = -1; z <= 1; z++){
+                int3 neighbouring_cell_pos = cell_pos + int3(x, y, z);
+                if ( all(neighbouring_cell_pos >= int3(0,0,0)) && all(neighbouring_cell_pos < int3((int)grid_dims.x, (int)grid_dims.y, (int)grid_dims.z)) )
+                {
+                    uint neighbour_cell_id = CalcCellId(neighbouring_cell_pos);
+                    uint start_id = startendIDs[neighbour_cell_id].x;
+                    uint end_id = startendIDs[neighbour_cell_id].y;
+                    for (uint n_id = start_id; n_id < end_id; n_id++)
+                        summed_velocity += particleBuffer[n_id].velocity.xyz;
+                }
+            }
+        }
+    }
+
+    float3 new_velocity = normalize(summed_velocity) * speed;
+
+    // particle.velocity.xyz = float3(0,1,0);
+    particle.velocity.xyz = new_velocity;
+    particle.position.xyz += particle.velocity.xyz*dt;
+
+    BoundToBox(particle.position.xyz);
+    particleBuffer[id.x] = particle;
+
+
+    // Grid Update
+    cell_pos = CalcCellCoords(particle.position.xyz);
+    cell_id = CalcCellId(cell_pos);
+    cellIDs[id.x] = cell_id;
+}
+
+
+[numthreads(128,1,1)]
 void RearrangeParticleIDs (uint3 id : SV_DispatchThreadID)
 {
-    particleIDs[id.x] = particleIDs[keys[id.x]];
+    particleIDs[id.x] = keys[id.x];
     keys[id.x] = id.x;
 }
 
