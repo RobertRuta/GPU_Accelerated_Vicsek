@@ -1,7 +1,5 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel ParticleUpdate
-#pragma kernel RearrangeParticles
-#pragma kernel BuildStartEndIDs
 
 struct Particle
 {
@@ -12,8 +10,6 @@ struct Particle
 RWStructuredBuffer<Particle> particleBuffer;
 RWStructuredBuffer<uint> cellIDs;
 RWStructuredBuffer<uint> particleIDs;
-RWStructuredBuffer<uint> keys;
-RWStructuredBuffer<uint2> startendIDs;
 
 float dt;
 int particle_count;
@@ -79,8 +75,7 @@ uint3 CalcCellCoords(float3 pos)
 [numthreads(128,1,1)]
 void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 {
-    uint pID = particleIDs[id.x];
-    Particle particle = particleBuffer[pID];
+    Particle particle = particleBuffer[id.x];
 
     float3 summed_velocity = float3(0,0,0);
     // Loop through every other particle in the simulation
@@ -101,36 +96,11 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
     particle.position.xyz += particle.velocity.xyz*dt;
 
     BoundToBox(particle.position.xyz);
-    particleBuffer[pID] = particle;
+    particleBuffer[id.x] = particle;
 
 
-    // // Grid Update
-    // uint3 cell_pos = CalcCellCoords(particle.position.xyz);
-    // uint cell_id = CalcCellId(cell_pos);
-    // cellIDs[pID] = cell_id;
-}
-
-
-
-[numthreads(128,1,1)]
-void RearrangeParticles (uint3 id : SV_DispatchThreadID)
-{
-    particleIDs[id.x] = particleIDs[keys[id.x]];
-    keys[id.x] = id.x;
-}
-
-
-[numthreads(128,1,1)]
-void BuildStartEndIDs (uint3 id : SV_DispatchThreadID)
-{
-    uint i = id.x;
-    uint p_id = particleIDs[i];
-    uint current = cellIDs[p_id];
-    uint prev = (i != 0) ? cellIDs[particleIDs[i-1]] : cellIDs[particleIDs[particle_count-1]];
-    uint next = (i != particle_count-1) ? cellIDs[particleIDs[i+1]] : cellIDs[particleIDs[0]];
-
-    if (current != prev)
-        startendIDs[current].x = i;
-    if (current != next)
-        startendIDs[current].y = i;
+    // Grid Update
+    uint3 cell_pos = CalcCellCoords(particle.position.xyz);
+    uint cell_id = CalcCellId(cell_pos);
+    cellIDs[id.x] = cell_id;
 }
