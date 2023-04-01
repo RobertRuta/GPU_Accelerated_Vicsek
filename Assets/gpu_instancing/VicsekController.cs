@@ -27,6 +27,10 @@ public class VicsekController : MonoBehaviour {
         public Vector4 position;
         public Vector4 velocity;
     }
+    struct Cell
+    {
+        public int is_full;
+    }
 
     private ComputeBuffer particleBuffer;
     private ComputeBuffer particleIDBuffer;
@@ -39,6 +43,7 @@ public class VicsekController : MonoBehaviour {
     int startendIDKernel;
     public float particleSize = 0.05f;
     int startend_group_count;
+    ComputeBuffer cellBuffer;
 
 
     void Start() {
@@ -64,26 +69,32 @@ public class VicsekController : MonoBehaviour {
         // Update compute shader variables
         ParticleCompute.SetFloat("speed", speed);
         ParticleCompute.SetFloat("dt", Time.deltaTime);
+        Debug("start");
 
         // Sort keys such that cellIDBuffer is ascending
         sorter.Sort(keyBuffer, cellIDBuffer);
         Debug("Sort");
 
         // Rearrange particleIDsBuffer based on keyBuffer
+        // ParticleCompute.SetBuffer(particleRearrangeKernel, "keys", keyBuffer);
+        ParticleCompute.SetBuffer(particleRearrangeKernel, "particleIDs", particleIDBuffer);
         ParticleCompute.Dispatch(particleRearrangeKernel, group_count, 1, 1);
         Debug("Rearrange");
         
         // Build start end indices
         startend_group_count = Mathf.CeilToInt(grid_dims.x*grid_dims.y*grid_dims.z / 128);
-        ParticleCompute.Dispatch(startendIDKernel, startend_group_count, 1, 1);
+        ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
+        Debug("Building StartEnd Indices");
 
         
         // Update Particle Positions
         // ParticleCompute.Dispatch(particleUpdateKernel, group_count, 1, 1);
         ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
+        Debug("Particle Update");
 
         // Render
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
+        Debug("After Draw");
     }
 
 
@@ -139,6 +150,9 @@ public class VicsekController : MonoBehaviour {
             particleIDBuffer.Release();
         if (startendIDBuffer != null)
             startendIDBuffer.Release();
+        if (cellBuffer != null)
+            cellBuffer.Release();
+        cellBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(Cell)));
         startendIDBuffer = new ComputeBuffer(particleCount, 2*Marshal.SizeOf(typeof(uint)));
         particleIDBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(uint)));
         keyBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(uint)));
@@ -162,14 +176,19 @@ public class VicsekController : MonoBehaviour {
         // Initalise startendID buffer
         int grid_size = (int)(grid_dims.x*grid_dims.y*grid_dims.z);
         Vector2Int[] startendIDArray = new Vector2Int[grid_size];
+        Cell[] cellArray = new Cell[grid_size];
         for (uint i = 0; i<(uint)grid_size; i++)
-            startendIDArray[i] = Vector2Int.zero;
+        {
+            startendIDArray[i] = new Vector2Int((int)i+1, (int)i);
+            cellArray[i].is_full = 0;
+        }
 
         // Initalise data in buffers
         keyBuffer.SetData(initArray);
         particleIDBuffer.SetData(initArray);
         cellIDBuffer.SetData(initArray);
         startendIDBuffer.SetData(startendIDArray);
+        cellBuffer.SetData(cellArray);
         particleBuffer.SetData(particleArray);
 
     }
@@ -205,6 +224,7 @@ public class VicsekController : MonoBehaviour {
         ParticleCompute.SetBuffer(startendIDKernel, "startendIDs", startendIDBuffer);
         ParticleCompute.SetBuffer(startendIDKernel, "particleIDs", particleIDBuffer);
         ParticleCompute.SetBuffer(startendIDKernel, "cellIDs", cellIDBuffer);
+        ParticleCompute.SetBuffer(startendIDKernel, "cellBuffer", cellBuffer);
     }
 
     void InitiateParticleUpdate(ComputeBuffer particleBuffer, ComputeBuffer cellIDBuffer)
@@ -221,6 +241,7 @@ public class VicsekController : MonoBehaviour {
         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "startendIDs", startendIDBuffer);
         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "particleIDs", particleIDBuffer);
         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "cellIDs", cellIDBuffer);
+        ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "cellBuffer", cellBuffer);
     }
 
     void InitiateArgs()
@@ -266,6 +287,10 @@ public class VicsekController : MonoBehaviour {
         if (startendIDBuffer != null)
             startendIDBuffer.Release();
         startendIDBuffer = null;
+
+        if (cellBuffer != null)
+            cellBuffer.Release();
+        cellBuffer = null;
 
         if (argsBuffer != null)
             argsBuffer.Release();

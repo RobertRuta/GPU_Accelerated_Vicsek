@@ -10,7 +10,13 @@ struct Particle
     float4 velocity;
 };
 
+struct Cell
+{
+    int is_full;
+};
+
 RWStructuredBuffer<Particle> particleBuffer;
+RWStructuredBuffer<Cell> cellBuffer;
 RWStructuredBuffer<uint> cellIDs;
 RWStructuredBuffer<uint> particleIDs;
 RWStructuredBuffer<uint> keys;
@@ -125,13 +131,26 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
         for (int y = -1; y <= 1; y++){
             for (int z = -1; z <= 1; z++){
                 int3 neighbouring_cell_pos = cell_pos + int3(x, y, z);
-                if ( all(neighbouring_cell_pos >= int3(0,0,0)) && all(neighbouring_cell_pos < int3((int)grid_dims.x, (int)grid_dims.y, (int)grid_dims.z)) )
+                neighbouring_cell_pos = int3(
+                    (neighbouring_cell_pos.x + grid_dims.x) % grid_dims.x,
+                    (neighbouring_cell_pos.y + grid_dims.y) % grid_dims.y,
+                    (neighbouring_cell_pos.z + grid_dims.z) % grid_dims.z
+                );
+                uint neighbour_cell_id = CalcCellId(neighbouring_cell_pos);
+                if (cellBuffer[neighbour_cell_id].is_full == 1)
                 {
-                    uint neighbour_cell_id = CalcCellId(neighbouring_cell_pos);
                     uint start_id = startendIDs[neighbour_cell_id].x;
                     uint end_id = startendIDs[neighbour_cell_id].y;
-                    for (uint n_id = start_id; n_id < end_id; n_id++)
-                        summed_velocity += particleBuffer[n_id].velocity.xyz;
+                    if (end_id >= start_id)
+                    {
+                        for (uint n_id = start_id; n_id < end_id; n_id++)
+                        {
+                            Particle neighbour = particleBuffer[n_id];
+                            float distance = length(neighbour.position.xyz - particle.position.xyz);
+                            if (distance < radius)
+                                summed_velocity += neighbour.velocity.xyz;
+                        }
+                    }
                 }
             }
         }
@@ -144,13 +163,16 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     particle.position.xyz += particle.velocity.xyz*dt;
 
     BoundToBox(particle.position.xyz);
-    particleBuffer[id.x] = particle;
+    particleBuffer[p_id] = particle;
 
 
     // Grid Update
     cell_pos = CalcCellCoords(particle.position.xyz);
     cell_id = CalcCellId(cell_pos);
-    cellIDs[id.x] = cell_id;
+    cellIDs[p_id] = cell_id;
+
+    // Reset cell buffer
+    cellBuffer[cell_id].is_full = 0;
 }
 
 
@@ -167,12 +189,15 @@ void BuildStartEndIDs (uint3 id : SV_DispatchThreadID)
 {
     uint i = id.x;
     uint p_id = particleIDs[i];
-    uint current = cellIDs[p_id];
-    uint prev = (i != 0) ? cellIDs[particleIDs[i-1]] : cellIDs[particleIDs[(uint)particle_count-1]];
-    uint next = (i != (uint)particle_count-1) ? cellIDs[particleIDs[i+1]] : cellIDs[particleIDs[0]];
+    uint cell_id = cellIDs[p_id];
+    uint prev_cell_id = (i != 0) ? cellIDs[particleIDs[i-1]] : cellIDs[particleIDs[(uint)particle_count-1]];
+    uint next_cell_id = (i != (uint)particle_count-1) ? cellIDs[particleIDs[i+1]] : cellIDs[particleIDs[0]];
 
-    if (current != prev)
-        startendIDs[current].x = i;
-    if (current != next)
-        startendIDs[current].y = i;
+    if (cell_id != prev_cell_id)
+        startendIDs[cell_id].x = i;
+    if (cell_id != next_cell_id)
+        startendIDs[cell_id].y = i;
+
+    // Specify which cells have particles
+    cellBuffer[cell_id].is_full = 1;
 }
