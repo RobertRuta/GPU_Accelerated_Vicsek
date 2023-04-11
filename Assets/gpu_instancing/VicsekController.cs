@@ -99,7 +99,7 @@ public class VicsekController : MonoBehaviour {
 
         // Render
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
-        //Debug("After Draw");
+        Debug("After Draw");
     }
 
 
@@ -114,9 +114,11 @@ public class VicsekController : MonoBehaviour {
         keyBuffer.GetData(keys);
         cellIDBuffer.GetData(values);
         startendIDBuffer.GetData(startend);
-        for (int i = 0; i < 10; i++)
+        for (int k = 0; k < 10; k++)
         {
-            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ i + "]: " + startend[i]);
+            int i = particleCount - 10 + k;
+            int j = grid_size - 10 + k;
+            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
         }  
     }
 

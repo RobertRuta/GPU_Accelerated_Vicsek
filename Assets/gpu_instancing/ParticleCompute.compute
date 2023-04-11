@@ -191,6 +191,21 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
                     (neighbouring_cell_pos.y + grid_dims.y) % grid_dims.y,
                     (neighbouring_cell_pos.z + grid_dims.z) % grid_dims.z
                 );
+                
+                // if (neighbouring_cell_pos.x == (int)grid_dims.x)
+                //     neighbouring_cell_pos.x = 0;
+                // if (neighbouring_cell_pos.y == (int)grid_dims.y)
+                //     neighbouring_cell_pos.y = 0;
+                // if (neighbouring_cell_pos.z == (int)grid_dims.z)
+                //     neighbouring_cell_pos.z = 0;
+                // if (neighbouring_cell_pos.x == -1)
+                //     neighbouring_cell_pos.x = (int)grid_dims.x-1;
+                // if (neighbouring_cell_pos.y == -1)
+                //     neighbouring_cell_pos.y = (int)grid_dims.y-1;
+                // if (neighbouring_cell_pos.z == -1)
+                //     neighbouring_cell_pos.z = (int)grid_dims.z-1;
+                
+
                 uint neighbour_cell_id = CalcCellId(neighbouring_cell_pos);
                 if (cellBuffer[neighbour_cell_id].is_full == 1)
                 {
