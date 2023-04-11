@@ -62,8 +62,6 @@ void BoundToBox(inout float3 pos)
     {
         pos.z += box.z;
     }
-
-    // return pos;
 }
 
 
@@ -79,9 +77,9 @@ int3 CalcCellCoords(float3 pos)
 {
     float cell_dim = radius;
     // cell {0, 0, 0} is found at coordinate origin and has index 0
-    int cell_X = (int) (pos.x / cell_dim);
-    int cell_Y = (int) (pos.y / cell_dim);
-    int cell_Z = (int) (pos.z / cell_dim);
+    int cell_X = floor(pos.x / cell_dim);
+    int cell_Y = floor(pos.y / cell_dim);
+    int cell_Z = floor(pos.z / cell_dim);
     int3 cell_xyz = int3(cell_X, cell_Y, cell_Z);
 
     return cell_xyz;
@@ -181,6 +179,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     uint cell_id = CalcCellId(cell_pos);
 
     float3 summed_velocity = particle.velocity.xyz;
+
     // Loop through neighbouring cells
     for (int x = -1; x <= 1; x++){
         for (int y = -1; y <= 1; y++){
@@ -211,9 +210,11 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
                 {
                     uint start_id = startendIDs[neighbour_cell_id].x;
                     uint end_id = startendIDs[neighbour_cell_id].y;
+                    // uint start_id = 1;
+                    // uint end_id = 1;
                     if (end_id >= start_id)
                     {
-                        for (uint n_id = start_id; n_id < end_id; n_id++)
+                        for (uint n_id = start_id; n_id <= end_id; n_id++)
                         {
                             Particle neighbour = particleBuffer[n_id];
                             float distance = length(neighbour.position.xyz - particle.position.xyz);
@@ -246,7 +247,9 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     // Grid Update
     cell_pos = CalcCellCoords(particle.position.xyz);
+    // cell_pos = int3((int)grid_dims.x, (int)grid_dims.y, (int)grid_dims.z);
     cell_id = CalcCellId(cell_pos);
+    // cell_id = 5;
     cellIDs[p_id] = cell_id;
 
     // Reset cell buffer
