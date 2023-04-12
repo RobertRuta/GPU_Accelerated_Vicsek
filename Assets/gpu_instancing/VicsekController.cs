@@ -81,13 +81,13 @@ public class VicsekController : MonoBehaviour {
 
         // Sort keys such that cellIDBuffer is ascending
         sorter.Sort(keyBuffer, cellIDBuffer);
-        //Debug("Sort");
+        Debug("Sort");
 
         // Rearrange particleIDsBuffer based on keyBuffer
         // ParticleCompute.SetBuffer(particleRearrangeKernel, "keys", keyBuffer);
         ParticleCompute.SetBuffer(particleRearrangeKernel, "particleIDs", particleIDBuffer);
         ParticleCompute.Dispatch(particleRearrangeKernel, group_count, 1, 1);
-        //Debug("Rearrange");
+        Debug("Rearrange");
         
         // Build start end indices
         ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
@@ -97,7 +97,7 @@ public class VicsekController : MonoBehaviour {
         // Update Particle Positions
         // ParticleCompute.Dispatch(particleUpdateKernel, group_count, 1, 1);
         ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
-        //Debug("Particle Update");
+        Debug("Particle Update");
 
         // Render
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
@@ -118,11 +118,16 @@ public class VicsekController : MonoBehaviour {
         keyBuffer.GetData(keys);
         cellIDBuffer.GetData(values);
         startendIDBuffer.GetData(startend);
+        for (int i = 0; i < 10; i++)
+        {
+            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ i + "]: " + startend[i]);
+        }
+
         for (int k = 0; k < 10; k++)
         {
             int i = particleCount - 10 + k;
             int j = grid_size - 10 + k;
-            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
+            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
         }  
     }
 
