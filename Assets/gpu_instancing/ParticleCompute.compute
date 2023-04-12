@@ -35,7 +35,6 @@ float3 box;
 uint3 grid_dims;
 
 
-
 void BoundToBox(inout float3 pos)
 {
     if(pos.x > box.x)

@@ -31,21 +31,6 @@
             StructuredBuffer<Particle> particleBuffer;
         #endif
 
-
-            void rotate2D(inout float2 v, float r)
-            {
-                float s, c;
-                sincos(r, s, c);
-                v = float2(v.x * c - v.y * s, v.x * s + v.y * c);
-                // v = float2(v.x - 1.0f, v.y - 1.0f);
-            }
-
-            void translation(inout float2 v, float t)
-            {
-                v.x += t;
-                v.y += t;
-            }
-
             struct v2f
             {
                 float4 pos : SV_POSITION;
@@ -63,8 +48,6 @@
             #else
                 float4 data = 0;
             #endif
-                // float rotation = data.w * data.w * _Time.x * 0.5f;
-                // translation(data.xz, _Time.x);
 
                 float3 localPosition = v.vertex.xyz * data.w;
                 float3 worldPosition = data.xyz + localPosition;

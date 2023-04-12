@@ -20,13 +20,16 @@ public class VicsekController : MonoBehaviour {
     int group_count;
     public float radius = 5;
     public float speed = 5;
+    [SerializeField]
     Vector3 box = new Vector3(100f, 100f, 100f);
-    Vector3 grid_dims;
+    [SerializeField]
+    Vector3Int grid_dims;
     struct Particle
     {
         public Vector4 position;
         public Vector4 velocity;
     }
+
     struct Cell
     {
         public int is_full;
@@ -87,9 +90,8 @@ public class VicsekController : MonoBehaviour {
         //Debug("Rearrange");
         
         // Build start end indices
-        startend_group_count = Mathf.CeilToInt(grid_dims.x*grid_dims.y*grid_dims.z / 128);
         ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
-        //Debug("Building StartEnd Indices");
+        Debug("Building StartEnd Indices");
 
         
         // Update Particle Positions
@@ -99,17 +101,19 @@ public class VicsekController : MonoBehaviour {
 
         // Render
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
-        Debug("After Draw");
+        // Debug("After Draw");
     }
 
 
     void Debug(string after)
     {
+        Particle[] particles = new Particle[particleCount];
         uint[] values = new uint[particleCount];
         uint[] particle_ids = new uint[particleCount];
         uint[] keys = new uint[particleCount];
         int grid_size = (int)(grid_dims.x*grid_dims.y*grid_dims.z);
         Vector2Int[] startend = new Vector2Int[grid_size];
+        particleBuffer.GetData(particles);
         particleIDBuffer.GetData(particle_ids);
         keyBuffer.GetData(keys);
         cellIDBuffer.GetData(values);
@@ -118,7 +122,7 @@ public class VicsekController : MonoBehaviour {
         {
             int i = particleCount - 10 + k;
             int j = grid_size - 10 + k;
-            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
+            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
         }  
     }
 
@@ -131,10 +135,10 @@ public class VicsekController : MonoBehaviour {
     {
         group_count = Mathf.CeilToInt((float)particleCount / 128);
 
-        InitiateBuffers();
 
-        InitiateSorter();
         InitiateSimParams();
+        InitiateBuffers();
+        InitiateSorter();
         InitiateRearrange(keyBuffer, particleIDBuffer);
         InitiateStartEndIDs(startendIDBuffer, particleIDBuffer, cellIDBuffer);
         // InitiateParticleUpdate(particleBuffer, cellIDBuffer);
@@ -209,12 +213,18 @@ public class VicsekController : MonoBehaviour {
     
     void InitiateSimParams()
     {
+        // Set particle count
         ParticleCompute.SetInt("particle_count", particleCount);
+
+        // Recalculate box vector
+        box = new Vector3((int)(box.x/radius) * radius, (int)(box.y/radius) * radius, (int)(box.z/radius) * radius);
+        // Set box vector in compute shader
         ParticleCompute.SetFloats("box", new [] {box.x, box.y, box.z});
 
-        box = new Vector3((int)(box.x/radius) * radius, (int)(box.y/radius) * radius, (int)(box.z/radius) * radius);
-        grid_dims = box/radius + Vector3.one;
-        ParticleCompute.SetInts("grid_dims", new [] {(int)grid_dims.x, (int)grid_dims.y, (int)grid_dims.z});
+        // Calculate grid dimensions
+        grid_dims = new Vector3Int((int)(box.x/radius), (int)(box.y/radius), (int)(box.z/radius));
+        // Set grid dimensions in compute shader
+        ParticleCompute.SetInts("grid_dims", new [] {grid_dims.x, grid_dims.y, grid_dims.z});
     }
 
     void InitiateRearrange(ComputeBuffer particleIDBuffer, ComputeBuffer keysBuffer)
