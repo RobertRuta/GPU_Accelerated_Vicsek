@@ -3,27 +3,38 @@ using BufferSorter;
 using System.Runtime.InteropServices;
 
 public class VicsekController : MonoBehaviour {
+
+    // User defined variables at startup
     public int particleCount = 100000;
+    public float radius = 5;
+    public float speed = 5;
+    public float noise = 1.0f;
+    public Texture2D NoiseTexture;
+    public float particleSize = 0.05f;
+    public bool debug_toggle = false;
     public Mesh particleMesh;
     public Material particleMaterial;
     public int subMeshIndex = 0;
-
-    private int cachedParticleCount = -1;
-    private int cachedSubMeshIndex = -1;
-    private ComputeBuffer argsBuffer;
-    private uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
-    
     public ComputeShader ParticleCompute;
+    public ComputeShader sortShader;
+
+
+    // Additional convenience variables
+    int cachedParticleCount = -1;
+    int cachedSubMeshIndex = -1;
+    ComputeBuffer argsBuffer;
+    uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
+    
+    // Compute shader kernel IDs
     int particleUpdateKernel;
     int optimizedParticleUpdateKernel;
     int gridUpdateKernel;
+
+    // Dispatch group counts
     int group_count;
-    public float radius = 5;
-    public float speed = 5;
-    [SerializeField]
-    Vector3 box = new Vector3(100f, 100f, 100f);
-    [SerializeField]
-    Vector3Int grid_dims;
+    
+    
+    // Simulation struct
     struct Particle
     {
         public Vector4 position;
@@ -35,21 +46,29 @@ public class VicsekController : MonoBehaviour {
         public int is_full;
     }
 
+
+    // Simulation space and grid variables
+    [SerializeField]
+    Vector3 box = new Vector3(100f, 100f, 100f);
+    [SerializeField]
+    Vector3Int grid_dims;
+    
+
+    // Third-party Sorter
+    Sorter sorter;
+    
+    
+    // Compute buffers
     private ComputeBuffer particleBuffer;
     private ComputeBuffer particleIDBuffer;
     private ComputeBuffer cellIDBuffer;
-    public ComputeShader sortShader;
-    Sorter sorter;
     ComputeBuffer keyBuffer;
     ComputeBuffer startendIDBuffer;
     int particleRearrangeKernel;
     int startendIDKernel;
-    public float particleSize = 0.05f;
     int startend_group_count;
     ComputeBuffer cellBuffer;
 
-    public float noise = 1.0f;
-    public Texture2D NoiseTexture;
 
 
     void Start() {
@@ -59,9 +78,10 @@ public class VicsekController : MonoBehaviour {
         InitiateSim();
     }
 
+
+
     void Update() {
         // Update starting position buffer
-        // TODO: if cachedBox != box & if cachedRadius != radius
         if (cachedParticleCount != particleCount || cachedSubMeshIndex != subMeshIndex)
             InitiateSim();
 
@@ -77,58 +97,55 @@ public class VicsekController : MonoBehaviour {
         ParticleCompute.SetFloat("dt", Time.deltaTime);
         ParticleCompute.SetFloat("time", Time.time);
         ParticleCompute.SetFloat("noise", noise);
-        //Debug("start");
 
         // Sort keys such that cellIDBuffer is ascending
         sorter.Sort(keyBuffer, cellIDBuffer);
-        Debug("Sort");
 
         // Rearrange particleIDsBuffer based on keyBuffer
-        // ParticleCompute.SetBuffer(particleRearrangeKernel, "keys", keyBuffer);
         ParticleCompute.SetBuffer(particleRearrangeKernel, "particleIDs", particleIDBuffer);
         ParticleCompute.Dispatch(particleRearrangeKernel, group_count, 1, 1);
-        Debug("Rearrange");
         
         // Build start end indices
         ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
-        Debug("Building StartEnd Indices");
 
         
         // Update Particle Positions
         // ParticleCompute.Dispatch(particleUpdateKernel, group_count, 1, 1);
         ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
-        Debug("Particle Update");
 
         // Render
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
-        // Debug("After Draw");
     }
 
 
+    // Helper functions
     void Debug(string after)
     {
-        Particle[] particles = new Particle[particleCount];
-        uint[] values = new uint[particleCount];
-        uint[] particle_ids = new uint[particleCount];
-        uint[] keys = new uint[particleCount];
-        int grid_size = (int)(grid_dims.x*grid_dims.y*grid_dims.z);
-        Vector2Int[] startend = new Vector2Int[grid_size];
-        particleBuffer.GetData(particles);
-        particleIDBuffer.GetData(particle_ids);
-        keyBuffer.GetData(keys);
-        cellIDBuffer.GetData(values);
-        startendIDBuffer.GetData(startend);
-        for (int i = 0; i < 10; i++)
-        {
-            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ i + "]: " + startend[i]);
-        }
+        if (debug_toggle){
+            Particle[] particles = new Particle[particleCount];
+            uint[] values = new uint[particleCount];
+            uint[] particle_ids = new uint[particleCount];
+            uint[] keys = new uint[particleCount];
+            int grid_size = (int)(grid_dims.x*grid_dims.y*grid_dims.z);
+            Vector2Int[] startend = new Vector2Int[grid_size];
+            particleBuffer.GetData(particles);
+            particleIDBuffer.GetData(particle_ids);
+            keyBuffer.GetData(keys);
+            cellIDBuffer.GetData(values);
+            startendIDBuffer.GetData(startend);
+            for (int i = 0; i < 10; i++)
+            {
+                print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ i + "]: " + startend[i]);
+            }
 
-        for (int k = 0; k < 10; k++)
-        {
-            int i = particleCount - 10 + k;
-            int j = grid_size - 10 + k;
-            print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
-        }  
+            for (int k = 0; k < 10; k++)
+            {
+                int i = particleCount - 10 + k;
+                int j = grid_size - 10 + k;
+                print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
+            } 
+
+        }
     }
 
     void OnGUI() {
