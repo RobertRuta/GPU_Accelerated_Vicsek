@@ -1,0 +1,281 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ParticleUpdate
+#pragma kernel OptimizedParticleUpdate
+#pragma kernel RearrangeParticleIDs
+#pragma kernel BuildStartEndIDs
+
+struct Particle
+{
+    float4 position;
+    float4 velocity;
+};
+
+struct Cell
+{
+    int is_full;
+};
+
+RWStructuredBuffer<Particle> particleBuffer;
+RWStructuredBuffer<Cell> cellBuffer;
+RWStructuredBuffer<uint> cellIDs;
+RWStructuredBuffer<uint> particleIDs;
+RWStructuredBuffer<uint> keys;
+RWStructuredBuffer<uint2> startendIDs;
+
+Texture2D NoiseTexture;
+SamplerState samplerNoiseTexture;
+
+float dt;
+float time;
+int particle_count;
+float radius;
+float speed;
+float noise;
+float3 box;
+uint3 grid_dims;
+
+
+void BoundToBox(inout float3 pos)
+{
+    if(pos.x > box.x)
+    {
+       pos.x -= box.x;
+    }
+    if(pos.x < 0.0)
+    {
+        pos.x += box.x;
+    }
+    if(pos.y > box.y)
+    {
+        pos.y -= box.y;
+    }
+    if(pos.y < 0.0)
+    {
+        pos.y += box.y;
+    }
+    if(pos.z > box.z)
+    {
+        pos.z -= box.z;
+    }
+    if(pos.z < 0.0)
+    {
+        pos.z += box.z;
+    }
+}
+
+
+uint CalcCellId(int3 cell_xyz)
+{
+    uint X = cell_xyz.x;
+    uint Y = cell_xyz.y;
+    uint Z = cell_xyz.z;
+    return X + grid_dims.x * Y + grid_dims.x * grid_dims.y * Z;
+}
+
+int3 CalcCellCoords(float3 pos)
+{
+    float cell_dim = radius;
+    // cell {0, 0, 0} is found at coordinate origin and has index 0
+    int cell_X = floor(pos.x / cell_dim);
+    int cell_Y = floor(pos.y / cell_dim);
+    int cell_Z = floor(pos.z / cell_dim);
+    int3 cell_xyz = int3(cell_X, cell_Y, cell_Z);
+
+    return cell_xyz;
+}
+
+
+// Random number generation
+int rng_state;
+uint s[4];
+
+uint rotl(uint x, int k)
+{
+	return (x << k) | (x >> (32 - k));
+}
+
+uint xorshift128plus()
+{
+    // Initialise rng seeder with some big primes
+    s[0] = 27538393;
+    s[1] = 88067389;
+    s[2] = 67901627;
+    s[3] = 36402433;
+
+    rng_state = s[0] + s[3];
+    uint t = s[1] << 9;
+
+	s[2] ^= s[0];
+	s[3] ^= s[1];
+	s[1] ^= s[2];
+	s[0] ^= s[3];
+
+	s[2] ^= t;
+
+	s[3] = rotl(s[3], 11);
+    return rng_state;
+}
+
+
+uint rand_xorshift()
+{
+	// Xorshift algorithm from George Marsaglia's paper
+	rng_state ^= (rng_state << 13);
+	rng_state ^= (rng_state >> 17);
+	rng_state ^= (rng_state << 5);
+	return rng_state;
+}
+
+
+float rand_float(uint id)
+{
+    rng_state = id;
+	float tmp = (1.0 / 4294967296.0);
+	return float(rand_xorshift()) * tmp;
+}
+
+
+[numthreads(128,1,1)]
+void ParticleUpdate (uint3 id : SV_DispatchThreadID)
+{
+    Particle particle = particleBuffer[id.x];
+
+    float3 summed_velocity = float3(0,0,0);
+    // Loop through every other particle in the simulation
+    for (int i=0; i<particle_count; i++)
+    {
+        Particle neighbour = particleBuffer[i];
+
+        float distance = length(neighbour.position.xyz - particle.position.xyz);
+        if (distance < radius)
+        {
+            summed_velocity += neighbour.velocity.xyz;
+        }
+    }
+    float3 new_velocity = normalize(summed_velocity) * speed;
+
+    // particle.velocity.xyz = float3(0,1,0);
+    particle.velocity.xyz = new_velocity;
+    particle.position.xyz += particle.velocity.xyz*dt;
+
+    BoundToBox(particle.position.xyz);
+    particleBuffer[id.x] = particle;
+
+
+    // Grid Update
+    uint3 cell_pos = CalcCellCoords(particle.position.xyz);
+    uint cell_id = CalcCellId(cell_pos);
+    cellIDs[id.x] = cell_id;
+}
+
+
+[numthreads(128,1,1)]
+void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
+{
+    uint p_id = particleIDs[id.x];
+    Particle particle = particleBuffer[p_id];
+    int3 cell_pos = CalcCellCoords(particle.position.xyz);
+    uint cell_id = CalcCellId(cell_pos);
+
+    float3 summed_velocity = particle.velocity.xyz;
+
+    // Loop through neighbouring cells
+    for (int x = -1; x <= 1; x++){
+        for (int y = -1; y <= 1; y++){
+            for (int z = -1; z <= 1; z++){
+                int3 neighbouring_cell_pos = cell_pos + int3(x, y, z);
+                neighbouring_cell_pos = int3(
+                    (neighbouring_cell_pos.x + grid_dims.x) % grid_dims.x,
+                    (neighbouring_cell_pos.y + grid_dims.y) % grid_dims.y,
+                    (neighbouring_cell_pos.z + grid_dims.z) % grid_dims.z
+                );
+                
+                // if (neighbouring_cell_pos.x == (int)grid_dims.x)
+                //     neighbouring_cell_pos.x = 0;
+                // if (neighbouring_cell_pos.y == (int)grid_dims.y)
+                //     neighbouring_cell_pos.y = 0;
+                // if (neighbouring_cell_pos.z == (int)grid_dims.z)
+                //     neighbouring_cell_pos.z = 0;
+                // if (neighbouring_cell_pos.x == -1)
+                //     neighbouring_cell_pos.x = (int)grid_dims.x-1;
+                // if (neighbouring_cell_pos.y == -1)
+                //     neighbouring_cell_pos.y = (int)grid_dims.y-1;
+                // if (neighbouring_cell_pos.z == -1)
+                //     neighbouring_cell_pos.z = (int)grid_dims.z-1;
+                
+
+                uint neighbour_cell_id = CalcCellId(neighbouring_cell_pos);
+                if (cellBuffer[neighbour_cell_id].is_full == 1)
+                {
+                    uint start_id = startendIDs[neighbour_cell_id].x;
+                    uint end_id = startendIDs[neighbour_cell_id].y;
+                    if (end_id >= start_id)
+                    {
+                        for (uint n_id = start_id; n_id <= end_id; n_id++)
+                        {
+                            Particle neighbour = particleBuffer[n_id];
+                            float distance = length(neighbour.position.xyz - particle.position.xyz);
+                            if (distance < radius)
+                                summed_velocity += neighbour.velocity.xyz;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Use time as seed for random float generator
+    uint time_seed_1 = (uint)((time * 877) % particle_count);
+    uint time_seed_2 = (uint)((time * 349) % particle_count);
+    // Generate random floats
+    float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
+    // Use "random" floats to "randomly" sample noise texture
+    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
+
+    float3 new_velocity = normalize(normalize(summed_velocity) + normalize(random_vector)*noise) * speed;
+
+    // particle.velocity.xyz = float3(0,1,0);
+    particle.velocity.xyz = new_velocity;
+    particle.position.xyz += particle.velocity.xyz*dt;
+
+    BoundToBox(particle.position.xyz);
+    particleBuffer[p_id] = particle;
+
+
+    // Grid Update
+    cell_pos = CalcCellCoords(particle.position.xyz);
+    // cell_pos = int3((int)grid_dims.x, (int)grid_dims.y, (int)grid_dims.z);
+    cell_id = CalcCellId(cell_pos);
+    // cell_id = 5;
+    cellIDs[p_id] = cell_id;
+
+    // Reset cell buffer
+    cellBuffer[cell_id].is_full = 0;
+}
+
+
+[numthreads(128,1,1)]
+void RearrangeParticleIDs (uint3 id : SV_DispatchThreadID)
+{
+    particleIDs[id.x] = keys[id.x];
+    keys[id.x] = id.x;
+}
+
+
+[numthreads(128,1,1)]
+void BuildStartEndIDs (uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    uint p_id = particleIDs[i];
+    uint cell_id = cellIDs[p_id];
+    uint prev_cell_id = (i != 0) ? cellIDs[particleIDs[i-1]] : cellIDs[particleIDs[(uint)particle_count-1]];
+    uint next_cell_id = (i != (uint)particle_count-1) ? cellIDs[particleIDs[i+1]] : cellIDs[particleIDs[0]];
+
+    if (cell_id != prev_cell_id)
+        startendIDs[cell_id].x = i;
+    if (cell_id != next_cell_id)
+        startendIDs[cell_id].y = i;
+
+    // Specify which cells have particles
+    cellBuffer[cell_id].is_full = 1;
+}

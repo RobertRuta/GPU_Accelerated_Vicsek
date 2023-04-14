@@ -3,13 +3,13 @@
 #pragma kernel UpdateGrid
 #pragma kernel SortParticles
 
+#define THREAD_GROUPS 128
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 struct Particle
 {
-    float3 position;
-    float3 velocity;
-    float3 color;
+    float4 position;
+    float4 velocity;
 };
 
 RWStructuredBuffer<Particle> particles;
@@ -21,12 +21,13 @@ Texture2D NoiseTexture;
 
 SamplerState samplerNoiseTexture;
 
+
 float deltaTime;
 float time;
 float radius;
 float noise;
 float speed;
-int numParticles;
+int num_particles;
 uint rng_state;
 
 float3 box;
@@ -113,6 +114,54 @@ float rand_float(uint id)
 }
 
 
+[numthreads(128,1,1)]
+void UpdateParticles (uint3 id : SV_DispatchThreadID)
+{
+    Particle particle = particles[id.x];
+    
+    
+    float3 alignment = particle.velocity.xyz;
+    // Compute alignments for each particle
+    for (uint i = 0; i < (uint)num_particles; i++)
+    {
+        if (id.x != i)
+        {
+            Particle tempParticle = particles[i];
+            float3 offset = tempParticle.position.xyz - particle.position.xyz;
+            float dist = length(offset);
+            if (dist < radius)
+            {
+                alignment += tempParticle.velocity.xyz;
+            }
+        }        
+    }
+    
+
+    // Use time as seed for random float generator
+    uint time_seed_1 = (uint)((time * 877) % num_particles);
+    uint time_seed_2 = (uint)((time * 349) % num_particles);
+    // Generate random floats
+    float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
+    // Use "random" floats to "randomly" sample noise texture
+    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
+    
+    
+    // Compute velocity based on alignment of neighbours and random vector
+    float3 velocity = normalize(alignment) + random_vector*noise;
+
+    // Give particle object new velocity and position 
+    particle.velocity.xyz = velocity;
+    particle.position.xyz += particle.velocity.xyz * speed * deltaTime;
+    // Teleport agents from one end to box to other end
+    particle.position.xyz = BoundToBox(particle.position.xyz);
+    
+    // Update buffer particle position and velocity
+    particles[id.x] = particle;
+}
+
+
+// ----------------- Grid Update Code ------------------ //
+
 uint CalcCellId(uint3 cell_xyz)
 {
     uint X = cell_xyz.x;
@@ -135,76 +184,11 @@ uint3 CalcCellCoords(float3 pos)
 }
 
 
-// float3 NeighbourAlignment(uint p_id)
-// {
-//     float3 alignment = float3(0,0,0);
-//     float3 position = particles[p_id].position;
-//     float3 velocity = particles[p_id].velocity;
-//     uint home_cell_id = CalcCellId(CalcCellCoords(position));
-    
-//     uint current_cell_id = home_cell_id;
-//     for (uint i = 0; i < 27; i++)
-//     {
-//     }
-
-//     return alignment;
-// }
-
-// ----------------- Particle Update Code ------------------ //
-[numthreads(128,1,1)]
-void UpdateParticles (uint3 id : SV_DispatchThreadID)
-{
-    Particle particle = particles[id.x];
-    
-    
-    float3 alignment = float3(particle.velocity);
-    // Compute alignments for each particle
-    for (uint i = 0; i < (uint)numParticles; i++)
-    {
-        if (id.x != i)
-        {
-            Particle tempParticle = particles[i];
-            float3 offset = tempParticle.position - particle.position;
-            float dist = length(offset);
-            if (dist < radius)
-            {
-                alignment += tempParticle.velocity;
-            }
-        }        
-    }
-    
-    
-    // particle.color = NoiseTexture.SampleLevel(samplerNoiseTexture, float2(600.0/1024, 2.0/1024.0), 0.0f).rgb;
-
-    // Use time as seed for random float generator
-    uint time_seed_1 = (uint)((time * 877) % numParticles);
-    uint time_seed_2 = (uint)((time * 349) % numParticles);
-    // Generate random floats
-    float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
-    // Use "random" floats to "randomly" sample noise texture
-    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
-    
-    
-    // Compute velocity based on alignment of neighbours and random vector
-    float3 velocity = normalize(alignment) + random_vector*noise;
-
-    // Give particle object new velocity and position 
-    particle.velocity = velocity;
-    particle.position += particle.velocity * speed * deltaTime;
-    // Teleport agents from one end to box to other end
-    particle.position = BoundToBox(particle.position);
-    
-    // Update buffer particle position and velocity
-    particles[id.x] = particle;
-}
-
-
-// ----------------- Grid Update Code ------------------ //
 [numthreads(128,1,1)]
 void UpdateGrid (uint3 id : SV_DispatchThreadID)
 {
     uint p_id = particle_ids[id.x];
-    float3 pos = particles[p_id].position;
+    float3 pos = particles[p_id].position.xyz;
     uint3 cell_xyz = CalcCellCoords(pos);
     uint cell_id = CalcCellId(cell_xyz);
     grid_ids[p_id] = cell_id;

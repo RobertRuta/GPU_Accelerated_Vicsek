@@ -25,9 +25,8 @@ Shader "Custom/ParticleRender"
 
                 struct Particle
                 {
-                    float3 position;
-                    float3 velocity;
-                    float3 color;
+                    float4 position;
+                    float4 velocity;
                 };
 
                 StructuredBuffer<Particle> particles;
@@ -49,12 +48,12 @@ Shader "Custom/ParticleRender"
                 {
                     v2f o;
 
-                    float3 worldPosition = particles[inst].position;
-                    float3 quadPoint = quadPoints[id];
+                    float3 worldPosition = particles[inst].position.xyz;
+                    float3 quadPoint = quadPoints[id].xyz;
 
                     o.pos = mul(UNITY_MATRIX_P, mul(UNITY_MATRIX_V, float4(worldPosition, 1.0f)) + float4(quadPoint, 0.0f));
                     o.uv = quadPoints[id] + 0.5f;
-                    o.color = float4(particles[inst].velocity + 1.0, 1.0f) * _Color;
+                    o.color = float4(particles[inst].velocity.xyz + 1.0, 1.0f) * _Color;
                     // o.color = float4(particles[inst].color, 1.0f) * _Color;
 
                     return o;
