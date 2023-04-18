@@ -100,7 +100,7 @@ public class VicsekController : MonoBehaviour {
         ParticleCompute.SetFloat("dt", Time.deltaTime);
         ParticleCompute.SetFloat("time", Time.time);
         ParticleCompute.SetFloat("noise", noise);
-        // ParticleCompute.SetFloat("particleSize", particleSize);
+        ParticleCompute.SetFloat("particleSize", particleSize);
 
         // Sort keys such that cellIDBuffer is ascending
         sorter.Sort(keyBuffer, cellIDBuffer);

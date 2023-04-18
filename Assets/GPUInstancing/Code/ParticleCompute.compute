@@ -33,6 +33,7 @@ float speed;
 float noise;
 float3 box;
 uint3 grid_dims;
+float particleSize;
 
 
 void BoundToBox(inout float3 pos)
@@ -240,6 +241,10 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     BoundToBox(particle.position.xyz);
     particleBuffer[p_id] = particle;
+
+
+    // Update particle size;
+    particleBuffer[p_id].position.w = particleSize;
 
 
     // Grid Update
