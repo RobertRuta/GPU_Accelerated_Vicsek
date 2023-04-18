@@ -251,6 +251,9 @@ public class VicsekController : MonoBehaviour {
     
     void InitiateSimParams()
     {
+        if (particleCount != cachedParticleCount)
+            particleCount = Mathf.NextPowerOfTwo(particleCount) >> 1;
+
         // Set particle count
         ParticleCompute.SetInt("particle_count", particleCount);
 
