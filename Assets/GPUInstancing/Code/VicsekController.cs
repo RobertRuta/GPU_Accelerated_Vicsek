@@ -7,6 +7,8 @@ public class VicsekController : MonoBehaviour {
     // User defined variables at startup
     public int particleCount = 100000;
     public float radius = 5;
+    [SerializeField]
+    Vector2 radius_range;
     public float speed = 5;
     public float noise = 1.0f;
     public Texture2D NoiseTexture;
@@ -52,6 +54,8 @@ public class VicsekController : MonoBehaviour {
     // Simulation space and grid variables
     public float box_width = 100f;
     [SerializeField]
+    Vector2 box_range;
+    [SerializeField]
     Vector3 box;
     [SerializeField]
     Vector3Int grid_dims;
@@ -75,13 +79,18 @@ public class VicsekController : MonoBehaviour {
     ComputeBuffer cellBuffer;
 
     const uint MAX_BUFFER_BYTES = 2147483648;
+    int max_cell_count;
 
 
 
     void Start() {
+        max_cell_count = (int)(MAX_BUFFER_BYTES / 8);
+
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
         particleUpdateKernel = ParticleCompute.FindKernel("ParticleUpdate");
         optimizedParticleUpdateKernel = ParticleCompute.FindKernel("OptimizedParticleUpdate");
+        RecalcBoxRange();
+        RecalcRadiusRange();
         InitiateSim();
     }
 
@@ -130,10 +139,10 @@ public class VicsekController : MonoBehaviour {
         particleCount = (int)GUI.HorizontalSlider(new Rect(25, 20, 200, 30), (float)particleCount, 1.0f, 2000000.0f);
         
         GUI.Label(new Rect(265, 45, 200, 30), "Box width: " + box_width.ToString() + "m");
-        box_width = GUI.HorizontalSlider(new Rect(25, 50, 200, 30), box_width, 1f, 100f);
+        box_width = GUI.HorizontalSlider(new Rect(25, 50, 200, 30), box_width, box_range.x, box_range.y);
 
         GUI.Label(new Rect(265, 75, 200, 30), "Neighbour radius: " + radius.ToString() + "m");
-        radius = GUI.HorizontalSlider(new Rect(25, 80, 200, 30), radius, 0.2f, 10f);
+        radius = GUI.HorizontalSlider(new Rect(25, 80, 200, 30), radius, radius_range.x, radius_range.y);
         
         GUI.Label(new Rect(265, 105, 200, 30), "Noise: " + noise.ToString() + "");
         noise = GUI.HorizontalSlider(new Rect(25, 110, 200, 30), noise, 0.0f, 1f);
@@ -169,6 +178,21 @@ public class VicsekController : MonoBehaviour {
             } 
 
         }
+    }
+
+
+    void RecalcRadiusRange(){
+        float MAX = 20f;
+        float MIN = 0.1f;
+        radius_range.x = Mathf.Clamp(box_range.y / Mathf.Pow((float)max_cell_count, 1f/3f), MIN, MAX);
+        radius_range.y = Mathf.Clamp(box_range.y, MIN, MAX);   
+    }
+
+    void RecalcBoxRange(){
+        float MAX = 100f;
+        float MIN = 1f;
+        box_range.x = MIN;
+        box_range.y = Mathf.Clamp((Mathf.Pow((float)max_cell_count, 1f/3f) * radius), MIN, MAX);
     }
 
 
@@ -258,6 +282,14 @@ public class VicsekController : MonoBehaviour {
         if (particleCount != cachedParticleCount)
             particleCount = Mathf.NextPowerOfTwo(particleCount) >> 1;
         ParticleCompute.SetInt("particle_count", particleCount);
+
+        // Clamp radius and box_width
+        if (box_width != cachedBoxWidth)
+            RecalcRadiusRange();
+        if (radius != cachedRadius)
+            RecalcBoxRange();
+        radius = Mathf.Clamp(radius, radius_range.x, radius_range.y);
+        box_width = Mathf.Clamp(box_width, box_range.x, box_range.y);
 
         // Set box vector
         box = new Vector3(box_width, box_width, box_width);
