@@ -55,6 +55,8 @@ public class VicsekController : MonoBehaviour {
     Vector3 box;
     [SerializeField]
     Vector3Int grid_dims;
+    [SerializeField]
+    int cellCount;
     
 
     // Third-party Sorter
@@ -71,6 +73,8 @@ public class VicsekController : MonoBehaviour {
     int startendIDKernel;
     int startend_group_count;
     ComputeBuffer cellBuffer;
+
+    const uint MAX_BUFFER_BYTES = 2147483648;
 
 
 
@@ -146,8 +150,7 @@ public class VicsekController : MonoBehaviour {
             uint[] values = new uint[particleCount];
             uint[] particle_ids = new uint[particleCount];
             uint[] keys = new uint[particleCount];
-            int grid_size = (int)(grid_dims.x*grid_dims.y*grid_dims.z);
-            Vector2Int[] startend = new Vector2Int[grid_size];
+            Vector2Int[] startend = new Vector2Int[cellCount];
             particleBuffer.GetData(particles);
             particleIDBuffer.GetData(particle_ids);
             keyBuffer.GetData(keys);
@@ -161,7 +164,7 @@ public class VicsekController : MonoBehaviour {
             for (int k = 0; k < 10; k++)
             {
                 int i = particleCount - 10 + k;
-                int j = grid_size - 10 + k;
+                int j = cellCount - 10 + k;
                 print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
             } 
 
@@ -201,8 +204,8 @@ public class VicsekController : MonoBehaviour {
             startendIDBuffer.Release();
         if (cellBuffer != null)
             cellBuffer.Release();
-        cellBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(Cell)));
-        startendIDBuffer = new ComputeBuffer(particleCount, 2*Marshal.SizeOf(typeof(uint)));
+        cellBuffer = new ComputeBuffer(cellCount, Marshal.SizeOf(typeof(Cell)));
+        startendIDBuffer = new ComputeBuffer(cellCount, 2*Marshal.SizeOf(typeof(uint)));
         particleIDBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(uint)));
         keyBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(uint)));
         particleBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(Particle)));
@@ -223,10 +226,9 @@ public class VicsekController : MonoBehaviour {
         }
 
         // Initalise startendID buffer
-        int grid_size = (int)(grid_dims.x*grid_dims.y*grid_dims.z);
-        Vector2Int[] startendIDArray = new Vector2Int[grid_size];
-        Cell[] cellArray = new Cell[grid_size];
-        for (uint i = 0; i<(uint)grid_size; i++)
+        Vector2Int[] startendIDArray = new Vector2Int[cellCount];
+        Cell[] cellArray = new Cell[cellCount];
+        for (uint i = 0; i<(uint)cellCount; i++)
         {
             startendIDArray[i] = new Vector2Int((int)i+1, (int)i);
             cellArray[i].is_full = 0;
@@ -242,6 +244,7 @@ public class VicsekController : MonoBehaviour {
 
     }
 
+    // Initiate Emmet's sorter
     void InitiateSorter()
     {
         if (sorter != null)
@@ -251,14 +254,14 @@ public class VicsekController : MonoBehaviour {
     
     void InitiateSimParams()
     {
+        // Set particle count
         if (particleCount != cachedParticleCount)
             particleCount = Mathf.NextPowerOfTwo(particleCount) >> 1;
-
-        // Set particle count
         ParticleCompute.SetInt("particle_count", particleCount);
 
-        // Recalculate box vector
+        // Set box vector
         box = new Vector3(box_width, box_width, box_width);
+        // Recalculate box vector - box must be the same size as the grid boundaries
         box = new Vector3((int)(box.x/radius) * radius, (int)(box.y/radius) * radius, (int)(box.z/radius) * radius);
         // Set box vector in compute shader
         ParticleCompute.SetFloats("box", new [] {box.x, box.y, box.z});
@@ -267,7 +270,8 @@ public class VicsekController : MonoBehaviour {
         grid_dims = new Vector3Int((int)(box.x/radius), (int)(box.y/radius), (int)(box.z/radius));
         // Set grid dimensions in compute shader
         ParticleCompute.SetInts("grid_dims", new [] {grid_dims.x, grid_dims.y, grid_dims.z});
-
+        // Calculate cell count
+        cellCount = grid_dims.x*grid_dims.y*grid_dims.z;
 
         cachedParticleCount = particleCount;
         cachedBoxWidth = box_width;
@@ -275,12 +279,14 @@ public class VicsekController : MonoBehaviour {
         cachedSubMeshIndex = subMeshIndex;
     }
 
+
     void InitiateRearrange(ComputeBuffer particleIDBuffer, ComputeBuffer keysBuffer)
     {
         particleRearrangeKernel = ParticleCompute.FindKernel("RearrangeParticleIDs");
         ParticleCompute.SetBuffer(particleRearrangeKernel, "particleIDs", particleIDBuffer);
         ParticleCompute.SetBuffer(particleRearrangeKernel, "keys", keyBuffer);
     }
+
 
     void InitiateStartEndIDs(ComputeBuffer startendIDBuffer, ComputeBuffer particleIDBuffer, ComputeBuffer cellIDBuffer)
     {
@@ -292,12 +298,14 @@ public class VicsekController : MonoBehaviour {
         ParticleCompute.SetBuffer(startendIDKernel, "cellBuffer", cellBuffer);
     }
 
+
     void InitiateParticleUpdate(ComputeBuffer particleBuffer, ComputeBuffer cellIDBuffer)
     {
         ParticleCompute.SetFloat("radius", radius);
         ParticleCompute.SetBuffer(particleUpdateKernel, "particleBuffer", particleBuffer);
         ParticleCompute.SetBuffer(particleUpdateKernel, "cellIDs", cellIDBuffer);
     }
+
 
     void InitiateOptimizedParticleUpdate(ComputeBuffer particleBuffer, ComputeBuffer cellIDBuffer, ComputeBuffer startendIDBuffer, ComputeBuffer particleIDBuffer)
     {
