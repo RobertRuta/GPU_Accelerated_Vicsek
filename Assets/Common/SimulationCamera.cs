@@ -8,10 +8,12 @@ public class SimulationCamera : MonoBehaviour
     Vector3 target; // The target object to face
     public float xSpeed = 120.0f; // Horizontal rotation speed
     public float ySpeed = 120.0f; // Vertical rotation speed
-    public float zoomSpeed = 10f;
+    public float zoomSpeed = 100f;
+    public float inertiaDampening = 5.0f;
 
     private float x = 0.0f;
     private float y = 0.0f;
+    float dx, dy;
     VicsekController sim;
     float boxWidth;
 
@@ -27,7 +29,7 @@ public class SimulationCamera : MonoBehaviour
 
         target = Vector3.one * boxWidth/2;
         transform.LookAt(target);
-        transform.position = Vector3.one*boxWidth/2 + new Vector3(-1f,0,-1f)*200f;
+        transform.position = Vector3.one*boxWidth/2 + new Vector3(0,0,-1)*200f;
     }
 
     void Update()
@@ -42,28 +44,33 @@ public class SimulationCamera : MonoBehaviour
 
         target = Vector3.one * boxWidth/2;
         float zoom_input = Input.GetAxis("Mouse ScrollWheel");
-        float zoom = zoom_input*zoomSpeed;
+        float zoom = -zoom_input*zoomSpeed;
 
         Vector3 separation = transform.position - target;
         transform.position += separation.normalized*zoom;
 
 
-        if (Input.GetMouseButton(0))
-        {
-            x += Input.GetAxis("Mouse X") * xSpeed * Time.deltaTime;
-            y -= Input.GetAxis("Mouse Y") * ySpeed * Time.deltaTime;
+        if (Input.GetMouseButton(0)){
+            dx = Input.GetAxis("Mouse X") * xSpeed * Time.deltaTime;
+            dy = Input.GetAxis("Mouse Y") * ySpeed * Time.deltaTime;           
 
-            y = Mathf.Clamp(y, -89, 89);
-
-            Quaternion rotation = Quaternion.Euler(y, x, 0);
-
-            float distance = (transform.position - target).magnitude;
-            Vector3 position = rotation * new Vector3(0.0f, 0.0f, -distance) + target;
-
-            transform.rotation = rotation;
-            transform.position = position;
+        }
+        else{
+            dx = Mathf.Lerp(dx, 0, inertiaDampening * Time.deltaTime);
+            dy = Mathf.Lerp(dy, 0, inertiaDampening * Time.deltaTime);
         }
 
+        x += dx;
+        y -= dy;
+        y = Mathf.Clamp(y, -89, 89);
+
+        float distance = (transform.position - target).magnitude;
+        Quaternion rotation = Quaternion.Euler(y, x, 0);
+        Vector3 position = rotation * new Vector3(0.0f, 0.0f, -distance) + target;
+
+        transform.rotation = rotation;
+        transform.position = position;
+        
 
         transform.LookAt(target);
     }

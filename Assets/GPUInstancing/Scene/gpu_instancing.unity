@@ -136,6 +136,7 @@ GameObject:
   - component: {fileID: 761647604}
   - component: {fileID: 761647607}
   - component: {fileID: 761647608}
+  - component: {fileID: 761647609}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -238,9 +239,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 772d0d02b3bb57b4084e147788dc4e63, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  distance: 0
-  zoomSpeed: 40
-  rotationSpeed: 0.1
+  xSpeed: 80
+  ySpeed: 80
+  zoomSpeed: 50
+  inertiaDampening: 3
+--- !u!114 &761647609
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 761647603}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47af73d2b54b02845a12fde62883ba7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 895109123}
+  distance: 10
+  xSpeed: 120
+  ySpeed: 120
 --- !u!1 &895109121
 GameObject:
   m_ObjectHideFlags: 0
@@ -285,7 +303,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8f1c8aef0844a14daafd442a5a30da3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleCount: 1048577
+  particleCount: 131072
   radius: 5
   radius_range: {x: 0, y: 0}
   speed: 5

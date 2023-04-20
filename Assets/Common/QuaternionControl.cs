@@ -27,7 +27,5 @@ public class QuaternionControl : MonoBehaviour
             Quaternion rotation = Quaternion.Euler(y, x, 0);
             cube.rotation = rotation;
         }
-        
-        
     }
 }
