@@ -16,6 +16,7 @@ public class SimulationCamera : MonoBehaviour
     float dx, dy;
     VicsekController sim;
     float boxWidth;
+    Vector3 initPosition;
 
     void Start()
     {
@@ -29,7 +30,7 @@ public class SimulationCamera : MonoBehaviour
 
         target = Vector3.one * boxWidth/2;
         transform.LookAt(target);
-        transform.position = Vector3.one*boxWidth/2 + new Vector3(0,0,-1)*200f;
+        initPosition = Vector3.one*boxWidth/2 + new Vector3(-1,0,-1)*200f;
     }
 
     void Update()
@@ -64,9 +65,9 @@ public class SimulationCamera : MonoBehaviour
         y -= dy;
         y = Mathf.Clamp(y, -89, 89);
 
-        float distance = (transform.position - target).magnitude;
+        float distance = separation.magnitude;
         Quaternion rotation = Quaternion.Euler(y, x, 0);
-        Vector3 position = rotation * new Vector3(0.0f, 0.0f, -distance) + target;
+        Vector3 position = rotation * initPosition + target;
 
         transform.rotation = rotation;
         transform.position = position;
