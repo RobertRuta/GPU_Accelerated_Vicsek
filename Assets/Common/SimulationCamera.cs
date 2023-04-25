@@ -53,13 +53,13 @@ public class SimulationCamera : MonoBehaviour
         
         // Allows for rotating the camera when LMB held
         if (Input.GetMouseButton(0)){   
-            dx = Input.GetAxis("Mouse X") * xSpeed * Time.deltaTime;
-            dy = Input.GetAxis("Mouse Y") * ySpeed * Time.deltaTime;           
+            dx = Input.GetAxis("Mouse X") * xSpeed;
+            dy = Input.GetAxis("Mouse Y") * ySpeed;           
         }
         // When LMB let go, give the rotation some inertia
         else{
-            dx = Mathf.Lerp(dx, 0, inertialDamping * Time.deltaTime);
-            dy = Mathf.Lerp(dy, 0, inertialDamping * Time.deltaTime);
+            dx = Mathf.Lerp(dx, 0, inertialDamping);
+            dy = Mathf.Lerp(dy, 0, inertialDamping);
         }
 
         // Add the input spin or inertia spin component to 2D rotation component
