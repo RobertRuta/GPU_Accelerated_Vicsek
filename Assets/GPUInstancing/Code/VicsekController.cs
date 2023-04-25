@@ -136,7 +136,7 @@ public class VicsekController : MonoBehaviour {
 
     void OnGUI() {
         GUI.Label(new Rect(265, 15, 200, 30), "Particle Count: " + particleCount.ToString());
-        particleCount = (int)GUI.HorizontalSlider(new Rect(25, 20, 200, 30), (float)particleCount, 1.0f, 2000000.0f);
+        particleCount = (int)GUI.HorizontalSlider(new Rect(25, 20, 200, 30), (float)particleCount, 1.0f, Mathf.Pow(2,21)+1);
         
         GUI.Label(new Rect(265, 45, 200, 30), "Box width: " + box_width.ToString() + "m");
         box_width = GUI.HorizontalSlider(new Rect(25, 50, 200, 30), box_width, box_range.x, box_range.y);

@@ -9,10 +9,11 @@ public class SimulationCamera : MonoBehaviour
     public float xSpeed = 120.0f; // Horizontal rotation speed
     public float ySpeed = 120.0f; // Vertical rotation speed
     public float zoomSpeed = 100f;
-    public float inertiaDampening = 5.0f;
+    public float inertialDamping = 5.0f;
 
     private float x = 0.0f;
     private float y = 0.0f;
+    float distance;
     float dx, dy;
     VicsekController sim;
     float boxWidth;
@@ -24,13 +25,13 @@ public class SimulationCamera : MonoBehaviour
         x = angles.y;
         y = angles.x;
 
-
         sim = GameObject.Find("sim").GetComponent<VicsekController>();
         boxWidth = sim.box_width;
 
         target = Vector3.one * boxWidth/2;
         transform.LookAt(target);
         initPosition = Vector3.one*boxWidth/2 + new Vector3(-1,0,-1)*200f;
+        transform.position = initPosition;
     }
 
     void Update()
@@ -42,37 +43,36 @@ public class SimulationCamera : MonoBehaviour
         }
 
         boxWidth = sim.box_width;
-
         target = Vector3.one * boxWidth/2;
-        float zoom_input = Input.GetAxis("Mouse ScrollWheel");
-        float zoom = -zoom_input*zoomSpeed;
+        distance = (transform.position - target).magnitude;
 
-        Vector3 separation = transform.position - target;
-        transform.position += separation.normalized*zoom;
-
-
-        if (Input.GetMouseButton(0)){
+        // Zooming functionality
+        float zoom_input = Input.GetAxis("Mouse ScrollWheel");  // Store middle mouse rolling input in variable
+        float zoom = zoom_input * zoomSpeed;    // scale zoom by zoom speed
+        distance -= zoom;   // add the zoom to distance
+        
+        // Allows for rotating the camera when LMB held
+        if (Input.GetMouseButton(0)){   
             dx = Input.GetAxis("Mouse X") * xSpeed * Time.deltaTime;
             dy = Input.GetAxis("Mouse Y") * ySpeed * Time.deltaTime;           
-
         }
+        // When LMB let go, give the rotation some inertia
         else{
-            dx = Mathf.Lerp(dx, 0, inertiaDampening * Time.deltaTime);
-            dy = Mathf.Lerp(dy, 0, inertiaDampening * Time.deltaTime);
+            dx = Mathf.Lerp(dx, 0, inertialDamping * Time.deltaTime);
+            dy = Mathf.Lerp(dy, 0, inertialDamping * Time.deltaTime);
         }
 
+        // Add the input spin or inertia spin component to 2D rotation component
         x += dx;
         y -= dy;
-        y = Mathf.Clamp(y, -89, 89);
+        // Clamp the pitch of the camera such that it does not cross 90 degrees
+        y = Mathf.Clamp(y, -90, 90);
 
-        float distance = separation.magnitude;
         Quaternion rotation = Quaternion.Euler(y, x, 0);
-        Vector3 position = rotation * initPosition + target;
+        // Vector3 position = rotation * (initPosition.normalized * distance) + target;
+        Vector3 position = rotation * new Vector3(-1.0f, -1.0f, -distance) + target;
 
         transform.rotation = rotation;
         transform.position = position;
-        
-
-        transform.LookAt(target);
     }
 }
