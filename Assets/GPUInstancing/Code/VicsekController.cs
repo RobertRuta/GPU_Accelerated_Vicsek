@@ -19,6 +19,8 @@ public class VicsekController : MonoBehaviour {
     public int subMeshIndex = 0;
     public ComputeShader ParticleCompute;
     public ComputeShader sortShader;
+    float particleDensity;
+    float particleCellDensity;
 
 
     // Additional convenience variables
@@ -149,6 +151,9 @@ public class VicsekController : MonoBehaviour {
         
         GUI.Label(new Rect(265, 135, 200, 30), "Particle Size: " + particleSize.ToString() + "");
         particleSize = GUI.HorizontalSlider(new Rect(25, 140, 200, 30), particleSize, 0.05f, 5f);
+
+        GUI.Label(new Rect(800, 15, 200, 60), "Initial Particle Density \n" + particleDensity.ToString("F3") + " particles/m^3");
+        GUI.Label(new Rect(800, 75, 200, 60), "Initial Particle Cell Density \n" + particleCellDensity.ToString("F3") + " particles/cell");
     }
 
     // Helper functions
@@ -176,7 +181,6 @@ public class VicsekController : MonoBehaviour {
                 int j = cellCount - 10 + k;
                 print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
             } 
-
         }
     }
 
@@ -304,7 +308,12 @@ public class VicsekController : MonoBehaviour {
         ParticleCompute.SetInts("grid_dims", new [] {grid_dims.x, grid_dims.y, grid_dims.z});
         // Calculate cell count
         cellCount = grid_dims.x*grid_dims.y*grid_dims.z;
+        
+        // Some informational metrics
+        particleDensity = particleCount / (box_width*box_width*box_width);
+        particleCellDensity = particleCount / cellCount;
 
+        // Caching simulation parameters
         cachedParticleCount = particleCount;
         cachedBoxWidth = box_width;
         cachedRadius = radius;
