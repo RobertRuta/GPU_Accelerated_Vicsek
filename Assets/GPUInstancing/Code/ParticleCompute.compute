@@ -25,6 +25,8 @@ RWStructuredBuffer<uint2> startendIDs;
 Texture2D NoiseTexture;
 SamplerState samplerNoiseTexture;
 
+const float PI = 3.141592653589793;
+
 float dt;
 float time;
 int particle_count;
@@ -212,13 +214,65 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
         }
     }
 
-    // Use time as seed for random float generator
+    // float3 average_direction = normalize(summed_velocity);
+
+    // // Use time as seed for random float generator
+    // uint time_seed_1 = (uint)((time * 877) % particle_count);
+    // uint time_seed_2 = (uint)((time * 349) % particle_count);
+    
+    // // Generate random floats
+    // float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
+    // float4 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f);
+    // float rand_cos_theta = (random_vector.r - 0.5) * noise;
+    // float rand_sin_theta = sqrt(1-rand_cos_theta*rand_cos_theta);
+    // float rand_cos_phi = cos(2 * PI * random_vector.g);
+    // float rand_sin_phi = sqrt(1-rand_cos_phi*rand_cos_phi);
+
+    // float3 other_vector = float3(average_direction.y, -average_direction.x, 0.0);
+    // // float3 other_vector = float3(1.0, 0.0, 0.0);
+    // float3 normal_vector = cross(average_direction, other_vector);
+
+    // float3 first_rotation = normalize(average_direction*rand_cos_theta + cross(normal_vector, average_direction)*rand_sin_theta + normal_vector*dot(normal_vector, average_direction)*(1 - rand_cos_theta));
+    // float3 second_rotation = normalize(first_rotation*rand_cos_phi + (cross(average_direction, first_rotation)*rand_sin_phi + average_direction*dot(average_direction, first_rotation) * (1 - rand_cos_phi)));
+
+    // // average_direction.x += rand_cos_theta;
+    // float3 new_velocity = (second_rotation) * speed;
+
+
+
+    float3 average_direction = normalize(summed_velocity);
+
     uint time_seed_1 = (uint)((time * 877) % particle_count);
     uint time_seed_2 = (uint)((time * 349) % particle_count);
-    // Generate random floats
+
     float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
+    // float4 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f);
+    // float rand_cos_theta = (random_vector.r - 0.5)*2;
+    // float rand_sin_theta = sqrt(1 - rand_cos_theta * rand_cos_theta);
+    // float rand_phi = 2 * PI * random_vector.g;
+    // float rand_sin_phi = sin(rand_phi);
+    // float rand_cos_phi = cos(rand_phi);
+
+    // float3 other_vector = (abs(average_direction.x) > abs(average_direction.z)) ? float3(-average_direction.y, average_direction.x, 0.0) : float3(0.0, average_direction.z, -average_direction.y);
+    // float3 normal_vector = cross(average_direction, other_vector);
+
+    // float3 first_rotation = average_direction * rand_cos_theta + cross(normal_vector, average_direction) * rand_sin_theta + normal_vector * dot(normal_vector, average_direction) * (1 - rand_cos_theta);
+    // float3 second_rotation = first_rotation * rand_cos_phi + cross(average_direction, first_rotation) * rand_sin_phi + average_direction * dot(average_direction, first_rotation) * (1 - rand_cos_phi);
+
+    // float3 new_velocity = (second_rotation) * speed;
+    
+
     // Use "random" floats to "randomly" sample noise texture
-    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
+    // float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
+    float rand_float1 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).r - 0.5;
+    float rand_float2 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).g - 0.5;
+    float rand_float3 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).b - 0.5;
+    float3 random_vector = float3(rand_float1, rand_float2, rand_float3);
+
+    
+    float rand_phi = (NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).g) * 2 * PI;
+
+
 
     float3 new_velocity = normalize(normalize(summed_velocity) + normalize(random_vector)*noise) * speed;
 
