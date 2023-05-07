@@ -1,4 +1,5 @@
 // Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel DistributeOnSphere
 #pragma kernel ParticleUpdate
 #pragma kernel OptimizedParticleUpdate
 #pragma kernel RearrangeParticleIDs
@@ -16,6 +17,7 @@ struct Cell
 };
 
 RWStructuredBuffer<Particle> particleBuffer;
+RWStructuredBuffer<float3> positionBuffer;
 RWStructuredBuffer<Cell> cellBuffer;
 RWStructuredBuffer<uint> cellIDs;
 RWStructuredBuffer<uint> particleIDs;
@@ -25,7 +27,7 @@ RWStructuredBuffer<uint2> startendIDs;
 Texture2D NoiseTexture;
 SamplerState samplerNoiseTexture;
 
-const float PI = 3.141592653589793;
+static const float PI = 3.141592653589793;
 
 float dt;
 float time;
@@ -135,6 +137,38 @@ float rand_float(uint id)
     rng_state = id;
 	float tmp = (1.0 / 4294967296.0);
 	return float(rand_xorshift()) * tmp;
+}
+
+
+float RandomRange(uint seed, float min, float max)
+{
+    float random_float = rand_float(seed);
+    random_float = random_float * (max - min) + min;
+    return random_float;
+}
+
+
+[numthreads(128,1,1)]
+void DistributeOnSphere (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    float3 position = positionBuffer[id.x];
+
+    uint time_seed_1 = (uint)((time * 877) % particle_count);
+    uint time_seed_2 = (uint)((time * 349) % particle_count);
+    float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
+    // float4 rand_vector = (NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f) - 0.5) * 2;
+    float4 rand_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f);
+    
+    float theta = rand_vector.x * PI;
+    float phi = rand_vector.y * 2 * PI;
+    float x = radius * cos(phi) *sin(theta);
+    float z = radius * sin(phi)*sin(theta);
+    float y = radius * cos(theta);
+
+    // positionBuffer[id.x] = normalize(rand_vector.xyz) * radius;
+    // positionBuffer[id.x] = float3(theta,phi,theta);
+    positionBuffer[id.x] = float3(x,y,z);
 }
 
 
@@ -260,27 +294,44 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     // float3 second_rotation = first_rotation * rand_cos_phi + cross(average_direction, first_rotation) * rand_sin_phi + average_direction * dot(average_direction, first_rotation) * (1 - rand_cos_phi);
 
     // float3 new_velocity = (second_rotation) * speed;
-    
+
+    float rand_cos_phi = cos((NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).g) * 2 * PI);
+    float rand_sin_phi = sqrt(1 - rand_cos_phi*rand_cos_phi);
+    float min_cos_th = cos(PI * noise);
+    float rand_cos_theta = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).r * (1.0 - min_cos_th) + min_cos_th;
+    float rand_sin_theta = sqrt(1 - rand_cos_theta*rand_cos_theta);
+
+    float3 other_vector = float3(average_direction.y, average_direction.x, 0);
+    float3 normal_vector = normalize(cross(average_direction, other_vector));
+
+    float3 v_theta_rot = average_direction * rand_cos_theta + cross(normal_vector, average_direction) * rand_sin_theta + normal_vector * dot(normal_vector, average_direction) * (1 - rand_cos_theta);
+    float3 v_phi_rot = v_theta_rot * rand_cos_phi + cross(average_direction, v_theta_rot) * rand_sin_phi + average_direction * dot(average_direction, v_theta_rot) * (1 - rand_cos_phi);
+
+        
 
     // Use "random" floats to "randomly" sample noise texture
     // float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
-    float rand_float1 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).r - 0.5;
-    float rand_float2 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).g - 0.5;
-    float rand_float3 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).b - 0.5;
+    float rand_float1 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).r;
+    float rand_float2 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).g;
+    float rand_float3 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).b;
     float3 random_vector = float3(rand_float1, rand_float2, rand_float3);
-
-    
-    float rand_phi = (NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).g) * 2 * PI;
+    // float3 new_velocity = normalize(random_vector);
 
 
+    // float3 new_velocity = normalize(normalize(summed_velocity) + normalize(random_vector)*noise) * speed;
+    float3 new_velocity = v_phi_rot;
 
-    float3 new_velocity = normalize(normalize(summed_velocity) + normalize(random_vector)*noise) * speed;
 
     // particle.velocity.xyz = float3(0,1,0);
-    particle.velocity.xyz = new_velocity;
-    particle.position.xyz += particle.velocity.xyz*dt;
+    // particle.velocity.xyz = new_velocity;
+    // particle.position.xyz += particle.velocity.xyz*dt;
+    // particle.position.xyz = float3(rand_float1, rand_float2, rand_float3);
 
-    BoundToBox(particle.position.xyz);
+    float phi = 2*PI * rand_float1;
+    float theta = PI * rand_float2;;
+    particle.position.xyz = float3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) * box.x;
+
+    // BoundToBox(particle.position.xyz);
     particleBuffer[p_id] = particle;
 
 

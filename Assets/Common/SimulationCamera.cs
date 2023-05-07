@@ -13,6 +13,7 @@ public class SimulationCamera : MonoBehaviour
 
     private float x = 0.0f;
     private float y = 0.0f;
+    [SerializeField]
     float distance;
     float dx, dy;
     VicsekController sim;
@@ -32,6 +33,8 @@ public class SimulationCamera : MonoBehaviour
         transform.LookAt(target);
         initPosition = Vector3.one*boxWidth/2 + new Vector3(-1,0,-1)*200f;
         transform.position = initPosition;
+        
+        distance = (transform.position - target).magnitude;
     }
 
     void Update()
@@ -44,11 +47,11 @@ public class SimulationCamera : MonoBehaviour
 
         boxWidth = sim.box_width;
         target = Vector3.one * boxWidth/2;
-        distance = (transform.position - target).magnitude;
 
         // Zooming functionality
         float zoom_input = Input.GetAxis("Mouse ScrollWheel");  // Store middle mouse rolling input in variable
         float zoom = zoom_input * zoomSpeed;    // scale zoom by zoom speed
+        print(zoom);
         distance -= zoom;   // add the zoom to distance
         
         // Allows for rotating the camera when LMB held
