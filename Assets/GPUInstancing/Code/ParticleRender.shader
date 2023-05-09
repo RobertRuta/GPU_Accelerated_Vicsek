@@ -1,6 +1,7 @@
       Shader "Instanced/InstancedParticleShader" {
     Properties {
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
+        _ColorIntensity ("Color Intensity", Range(2, 10)) = 1
     }
     SubShader {
 
@@ -20,6 +21,7 @@
             #include "AutoLight.cginc"
 
             sampler2D _MainTex;
+            float _ColorIntensity;
 
             struct Particle
             {
@@ -58,7 +60,7 @@
                 float3 diffuse = (ndotl * _LightColor0.rgb);
                 float3 velocity_color = particleBuffer[instanceID].velocity.xyz*2 - float3(1, 1, 1);
                 // float3 color = v.color;
-                float3 color = velocity_color;
+                float3 color = normalize(velocity_color) * _ColorIntensity;
 
                 v2f o;
                 o.pos = mul(UNITY_MATRIX_VP, float4(worldPosition, 1.0f));

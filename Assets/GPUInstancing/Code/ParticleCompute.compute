@@ -231,27 +231,30 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     int3 cell_pos = CalcCellCoords(particle.position.xyz);
     uint cell_id = CalcCellId(cell_pos);
 
-    float3 summed_velocity = particle.velocity.xyz;
 
+    /// CHECK NEIGHBOUR VELOCITIES ///
+    float3 summed_velocity = particle.velocity.xyz;
     // Loop through neighbouring cells
     for (int x = -1; x <= 1; x++){
         for (int y = -1; y <= 1; y++){
             for (int z = -1; z <= 1; z++){
+                // Compute neighbour cell coordinates
                 int3 neighbouring_cell_pos = cell_pos + int3(x, y, z);
                 neighbouring_cell_pos = int3(
                     (neighbouring_cell_pos.x + grid_dims.x) % grid_dims.x,
                     (neighbouring_cell_pos.y + grid_dims.y) % grid_dims.y,
                     (neighbouring_cell_pos.z + grid_dims.z) % grid_dims.z
                 );
-                
-
+                // Compute neighbour cell id from cell coordinates
                 uint neighbour_cell_id = CalcCellId(neighbouring_cell_pos);
+                // Check if neighbour cell is empty
                 if (cellBuffer[neighbour_cell_id].is_full == 1)
                 {
                     uint start_id = startendIDs[neighbour_cell_id].x;
                     uint end_id = startendIDs[neighbour_cell_id].y;
                     if (end_id >= start_id)
                     {
+                        // Loop through particles in neighbouring cell
                         for (uint n_id = start_id; n_id <= end_id; n_id++)
                         {
                             Particle neighbour = particleBuffer[n_id];
@@ -264,185 +267,52 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
             }
         }
     }
-
+    // Average neighbour direction is the normalized sum of neighbour velocities
     float3 average_direction = normalize(summed_velocity);
-    // float3 average_direction = normalize(particle.velocity.xyz);
 
+    
+    /// RANDOM NUMBER GENERATION ///
     // Use time as seed for random float generator
     uint time_seed_1 = (uint)((time * 877) % particle_count);
     uint time_seed_2 = (uint)((time * 349) % particle_count);
-    // Generate random floats
+    // Random coordinates to be used for texture sampling
     float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
-    float4 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f);
+    // Get final random floats from noise texture
+    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).xyz;
     
+
     /// RODRIGUES VECTOR ROTATION ///
+    // Define theta rotation axis
     float3 normal_vector = normalize(cross(average_direction, float3(average_direction.y, average_direction.x, 0)));
-    float theta_perturbation = (random_vector.z - 0.5)*2 * PI * noise;
-    float phi_perturbation = random_vector.y * 2 * PI;
+    // float theta_perturbation = (random_vector.z - 0.5)*2 * PI * noise;
+    float theta_perturbation = acos(1 - 2*random_vector.z*noise);
+    // float theta_perturbation = random_vector.z * PI * noise;
+    float phi_perturbation = random_vector.x * 2 * PI;
+    // Theta rotation of vector
     float3 first_rot = average_direction * cos(theta_perturbation) + cross(normal_vector, average_direction) * sin(theta_perturbation);
+    // Phi rotation of vector
     float3 second_rot = first_rot * cos(phi_perturbation) + cross(average_direction, first_rot) * sin(phi_perturbation) + average_direction * dot(first_rot, average_direction) * (1-cos(phi_perturbation));
+    // Result of second rotation is the perturbed velocity
     float3 new_velocity = second_rot;
 
-    /// ATTEMPT VIA ADDING ANGLES ///
-    // float theta_perturbation = (random_vector.z - 0.5)*2 * PI * noise;
-    // // float theta_perturbation = 0.1*noise;
-    // // float phi_perturbation = random_vector.zy * 2 * PI;
-    // float theta = acos(average_direction.y);
-    // float phi = atan2(average_direction.z, average_direction.x);
 
-    // theta += theta_perturbation;
-    // // phi += phi_perturbation;
-
-    // float3 new_velocity = CartFromSpherical(theta, phi);
-
+    /// APPLY FINAL VELOCITIES AND MOVE PARTICLE ///
     particle.velocity.xyz = new_velocity * speed;
-    particle.position.xyz += particle.velocity.xyz*dt;
-    
-    
+    particle.position.xyz += particle.velocity.xyz*dt;    
+    // Enforce Periodic Boundaries
     BoundToBox(particle.position.xyz);
+    // Update particle in buffer
     particleBuffer[p_id] = particle;
-
-
     // Update particle size;
     particleBuffer[p_id].position.w = particleSize;
 
 
-    // Grid Update
+    /// GRID UPDATE ///
     cell_pos = CalcCellCoords(particle.position.xyz);
-    // cell_pos = int3((int)grid_dims.x, (int)grid_dims.y, (int)grid_dims.z);
     cell_id = CalcCellId(cell_pos);
-    // cell_id = 5;
     cellIDs[p_id] = cell_id;
-
     // Reset cell buffer
     cellBuffer[cell_id].is_full = 0;
-
-    
-    // // float rand_cos_theta = (random_vector.r - 0.5) * noise;
-    // // float rand_sin_theta = sqrt(1-rand_cos_theta*rand_cos_theta);
-    // // float rand_cos_phi = cos(2 * PI * random_vector.g);
-    // // float rand_sin_phi = sqrt(1-rand_cos_phi*rand_cos_phi);
-
-    // // float3 other_vector = float3(average_direction.y, -average_direction.x, 0.0);
-    // // // float3 other_vector = float3(1.0, 0.0, 0.0);
-    // // float3 normal_vector = cross(average_direction, other_vector);
-
-    // // float3 first_rotation = normalize(average_direction*rand_cos_theta + cross(normal_vector, average_direction)*rand_sin_theta + normal_vector*dot(normal_vector, average_direction)*(1 - rand_cos_theta));
-    // // float3 second_rotation = normalize(first_rotation*rand_cos_phi + (cross(average_direction, first_rotation)*rand_sin_phi + average_direction*dot(average_direction, first_rotation) * (1 - rand_cos_phi)));
-
-    // // // average_direction.x += rand_cos_theta;
-    // // float3 new_velocity = (second_rotation) * speed;
-
-
-
-    // uint time_seed_1 = (uint)((time * 877) % particle_count);
-    // uint time_seed_2 = (uint)((time * 349) % particle_count);
-
-    // float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
-    // // float4 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f);
-    // // float rand_cos_theta = (random_vector.r - 0.5)*2;
-    // // float rand_sin_theta = sqrt(1 - rand_cos_theta * rand_cos_theta);
-    // // float rand_phi = 2 * PI * random_vector.g;
-    // // float rand_sin_phi = sin(rand_phi);
-    // // float rand_cos_phi = cos(rand_phi);
-
-    // // float3 other_vector = (abs(average_direction.x) > abs(average_direction.z)) ? float3(-average_direction.y, average_direction.x, 0.0) : float3(0.0, average_direction.z, -average_direction.y);
-    // // float3 normal_vector = cross(average_direction, other_vector);
-
-    // // float3 first_rotation = average_direction * rand_cos_theta + cross(normal_vector, average_direction) * rand_sin_theta + normal_vector * dot(normal_vector, average_direction) * (1 - rand_cos_theta);
-    // // float3 second_rotation = first_rotation * rand_cos_phi + cross(average_direction, first_rotation) * rand_sin_phi + average_direction * dot(average_direction, first_rotation) * (1 - rand_cos_phi);
-
-    // // float3 new_velocity = (second_rotation) * speed;
-
-    // // float rand_cos_phi = cos((NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).g) * 2 * PI);
-    // // float rand_sin_phi = sqrt(1 - rand_cos_phi*rand_cos_phi);
-    // // float min_cos_th = cos(PI * noise);
-    // // float rand_cos_theta = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).r * (1.0 - min_cos_th) + min_cos_th;
-    // // float rand_cos_theta = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).r;
-    // // float rand_sin_theta = sqrt(1 - rand_cos_theta*rand_cos_theta);
-
-    // // float3 other_vector = float3(average_direction.y, average_direction.x, 0);
-    // // float3 normal_vector = normalize(cross(average_direction, other_vector));
-    // // float3 normal_vector = float3(1, 1, 0);
-    
-
-    // // float3 v_theta_rot = average_direction * rand_cos_theta + cross(normal_vector, average_direction) * rand_sin_theta + normal_vector * dot(normal_vector, average_direction) * (1 - rand_cos_theta);
-    // // float3 v_phi_rot = v_theta_rot * rand_cos_phi + cross(average_direction, v_theta_rot) * rand_sin_phi + average_direction * dot(average_direction, v_theta_rot) * (1 - rand_cos_phi);
-
-
-
-        
-
-    // // Use "random" floats to "randomly" sample noise texture
-    // // float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
-    // // float rand_float1 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).r;
-    // // float rand_float2 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).g;
-    // // float rand_float3 = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).b;
-    // // float3 random_vector = float3(rand_float1, rand_float2, rand_float3);
-    // // float3 new_velocity = normalize(random_vector);
-
-
-    // // float3 new_velocity = normalize(normalize(summed_velocity) + normalize(random_vector)*noise) * speed;
-    // // float3 new_velocity = v_phi_rot * speed;
-    
-    // // float3 new_velocity = RodriguezRot(particle.velocity.xyz, float3(1, 0, 0), 0.5)* speed;
-    // // particle.velocity.xyz = float3(1,0,0);
-
-
-    // // particle.velocity.xyz = float3(0,1,0);
-    // particle.velocity.xyz = new_velocity;
-    // particle.position.xyz += particle.velocity.xyz*dt;
-    // // particle.position.xyz = float3(rand_float1, rand_float2, rand_float3);
-
-    // // float phi = 2*PI * rand_float1;
-    // // float theta = PI * rand_float2;;
-    // // particle.position.xyz = float3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) * box.x;
-
-    // BoundToBox(particle.position.xyz);
-    // particleBuffer[p_id] = particle;
-
-
-    // // Update particle size;
-    // particleBuffer[p_id].position.w = particleSize;
-
-
-    // // Grid Update
-    // cell_pos = CalcCellCoords(particle.position.xyz);
-    // // cell_pos = int3((int)grid_dims.x, (int)grid_dims.y, (int)grid_dims.z);
-    // cell_id = CalcCellId(cell_pos);
-    // // cell_id = 5;
-    // cellIDs[p_id] = cell_id;
-
-    // // Reset cell buffer
-    // cellBuffer[cell_id].is_full = 0;
-    
-    
-    // if (all(particle.velocity.xyz == float3(0,1,0)))
-    // {
-    //     particle.velocity.xyz = float3(1,0,0);
-    // }
-    // float3 new_velocity = normalize(particle.velocity.xyz + normalize(cross(float3(0,1,0), particle.velocity.xyz)));
-    // uint p_id = id.x;
-    // particle.velocity.xyz = normalize(particle.velocity.xyz);
-    // Particle particle = particleBuffer[p_id];
-
-
-
-    // EXPERIMENTATION //
-
-
-
-    // // particle.velocity.xyz = normalize(normalize(particle.velocity.xyz) + normalize(cross(float3(0,1,0), particle.velocity.xyz)));
-    // particle.velocity.xyz = normalize(RodriguezRot(particle.velocity.xyz, float3(0,1,0), 0.1)) * speed;
-    // particle.position.xyz += particle.velocity.xyz*dt;
-    // BoundToBox(particle.position.xyz);
-    // particleBuffer[p_id] = particle;
-    // // Update particle size;
-    // particleBuffer[p_id].position.w = particleSize;
-
-
-    // an alternative solution would simply take the particle's velocity vector,
-    // convert it to the two angle representation, randomly draw a rotation angles theta and phi, add them to the angles and the convert back to the vector representation
 }
 
 
