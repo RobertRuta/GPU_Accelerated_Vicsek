@@ -1,6 +1,7 @@
 using UnityEngine;
 using BufferSorter;
 using System.Runtime.InteropServices;
+using System.IO;
 
 public class VicsekController : MonoBehaviour {
 
@@ -73,6 +74,7 @@ public class VicsekController : MonoBehaviour {
     private ComputeBuffer particleBuffer;
     private ComputeBuffer particleIDBuffer;
     private ComputeBuffer cellIDBuffer;
+    private ComputeBuffer debugBuffer;
     ComputeBuffer keyBuffer;
     ComputeBuffer startendIDBuffer;
     int particleRearrangeKernel;
@@ -94,6 +96,13 @@ public class VicsekController : MonoBehaviour {
         RecalcBoxRange();
         RecalcRadiusRange();
         InitiateSim();
+
+        debugBuffer = new ComputeBuffer(particleCount, 4*4);
+        Vector4 [] debugArray = new Vector4[particleCount];
+        for (int i = 0; i < 100; i++)
+        {
+            debugArray[i] = Vector4.zero;
+        }
     }
 
 
@@ -116,6 +125,7 @@ public class VicsekController : MonoBehaviour {
         ParticleCompute.SetFloat("time", Time.time);
         ParticleCompute.SetFloat("noise", noise);
         ParticleCompute.SetFloat("particleSize", particleSize);
+        ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
 
         // Sort keys such that cellIDBuffer is ascending
         sorter.Sort(keyBuffer, cellIDBuffer);
@@ -130,11 +140,53 @@ public class VicsekController : MonoBehaviour {
         
         // Update Particle Positions
         // ParticleCompute.Dispatch(particleUpdateKernel, group_count, 1, 1);
+        /// TEMPORARY DEBUG BUFFER ///
+        // float [] debugArray = new float[particleCount];
+        ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer", debugBuffer);
         ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
+        // debugBuffer.GetData(debugArray);
+        // for (int i = 0; i < 100; i++)
+        // {
+        //     print(i + ": " + debugArray[i]);
+        // }
 
         // Render
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
     }
+
+    void OnApplicationQuit()
+    {
+        Vector4 [] debugArray = new Vector4[particleCount];
+        debugBuffer.GetData(debugArray);
+        float [] debugArray_x = new float[particleCount];
+        float [] debugArray_y = new float[particleCount];
+        float [] debugArray_z = new float[particleCount];
+        float [] debugArray_w = new float[particleCount];
+
+        float sum = 0;
+        for (int i = 0; i < particleCount; i++)
+        {
+            debugArray_x[i] = debugArray[i].x;
+            debugArray_y[i] = debugArray[i].y;
+            sum += debugArray[i].y;
+        }
+        float average = sum / (float)particleCount;
+        print(average);
+
+        SaveFloatsToCSV(debugArray_x, "debugArray_x.csv");
+        SaveFloatsToCSV(debugArray_y, "debugArray_y.csv");
+    }
+    void SaveFloatsToCSV(float[] floatArray, string fileName)
+    {
+        using (StreamWriter file = new StreamWriter(fileName))
+        {
+            foreach (float f in floatArray)
+            {
+                file.WriteLine(f);
+            }
+        }
+    }
+
 
     void OnGUI() {
         GUI.Label(new Rect(265, 15, 200, 30), "Particle Count: " + particleCount.ToString());
