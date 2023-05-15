@@ -292,8 +292,8 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     // Random coordinates to be used for texture sampling
     float2 uvx = float2(rand_float1, rand_float2);
     // Get final random floats from noise texture
-    float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).xyz;
-    float3 random_direction = normalize((random_vector - 0.5)*2) ;
+    // float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).xyz;
+    // float3 random_direction = normalize((random_vector - 0.5)*2) ;
     
 
     /// RODRIGUES VECTOR ROTATION ///
@@ -317,18 +317,19 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     float random_num_2 = rand() % 654321 / 654321.0;
     float random_num_3 = rand() % 456123 / 456123.0;
     // float theta_perturbation = (random_num_1 - 0.5)*2 * PI * noise;
-    float theta_perturbation = acos(1 - 2*random_num_1) * noise;
+    float theta_perturbation = acos(1 - 2*random_num_1 * noise);
     float phi_perturbation = random_num_2 * 2 * PI;
     
-    
-    float3 normal_vector = normalize(cross(average_direction, float3(1,1,1)));
+    float3 random_vector = float3((random_num_1 - 0.5)*2, (random_num_2 - 0.5)*2, (random_num_3 - 0.5)*2);
+    float3 normal_vector = normalize(cross(average_direction, float3(1,0,0)));
     // Theta rotation of vector
     float3 first_rot = average_direction * cos(theta_perturbation) + cross(normal_vector, average_direction) * sin(theta_perturbation);
     // Phi rotation of vector
     float3 second_rot = first_rot * cos(phi_perturbation) + cross(average_direction, first_rot) * sin(phi_perturbation) + average_direction * dot(first_rot, average_direction) * (1-cos(phi_perturbation));
     // Result of second rotation is the perturbed velocity
-    float3 new_velocity = second_rot;
-
+    // float3 new_velocity = second_rot;
+    float3 new_velocity = average_direction;
+    
 
 
     debugBuffer[id.x].xy = float2(theta_perturbation, random_num_2);
