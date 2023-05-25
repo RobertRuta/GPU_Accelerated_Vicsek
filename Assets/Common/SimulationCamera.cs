@@ -51,7 +51,6 @@ public class SimulationCamera : MonoBehaviour
         // Zooming functionality
         float zoom_input = Input.GetAxis("Mouse ScrollWheel");  // Store middle mouse rolling input in variable
         float zoom = zoom_input * zoomSpeed;    // scale zoom by zoom speed
-        print(zoom);
         distance -= zoom;   // add the zoom to distance
         
         // Allows for rotating the camera when LMB held

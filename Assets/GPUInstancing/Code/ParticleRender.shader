@@ -58,7 +58,7 @@
                 float3 ndotl = saturate(dot(worldNormal, _WorldSpaceLightPos0.xyz));
                 float3 ambient = ShadeSH9(float4(worldNormal, 1.0f));
                 float3 diffuse = (ndotl * _LightColor0.rgb);
-                float3 velocity_color = particleBuffer[instanceID].velocity.xyz*2 - float3(1, 1, 1);
+                float3 velocity_color = normalize(particleBuffer[instanceID].velocity.xyz)*2 - float3(1, 1, 1);
                 // float3 color = v.color;
                 float3 color = normalize(velocity_color) * _ColorIntensity;
 

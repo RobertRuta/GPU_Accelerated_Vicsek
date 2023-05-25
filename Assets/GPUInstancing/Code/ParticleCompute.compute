@@ -321,14 +321,20 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     float phi_perturbation = random_num_2 * 2 * PI;
     
     float3 random_vector = float3((random_num_1 - 0.5)*2, (random_num_2 - 0.5)*2, (random_num_3 - 0.5)*2);
-    float3 normal_vector = normalize(cross(average_direction, float3(1,0,0)));
+    float3 other_vector = normalize(float3(average_direction.z, 0.0, average_direction.x));
+    // float3 diff_vec = (float3)(abs(average_direction) - abs(other_vector) < 0.1);
+    // bool3 sign_vec = -((float3)(other_vector > 0) * 2 - 1.0);
+    // other_vector += diff_vec*sign_vec;
+
+
+    float3 normal_vector = normalize(cross(average_direction, other_vector));
     // Theta rotation of vector
     float3 first_rot = average_direction * cos(theta_perturbation) + cross(normal_vector, average_direction) * sin(theta_perturbation);
     // Phi rotation of vector
     float3 second_rot = first_rot * cos(phi_perturbation) + cross(average_direction, first_rot) * sin(phi_perturbation) + average_direction * dot(first_rot, average_direction) * (1-cos(phi_perturbation));
     // Result of second rotation is the perturbed velocity
-    // float3 new_velocity = second_rot;
-    float3 new_velocity = average_direction;
+    float3 new_velocity = second_rot;
+    // float3 new_velocity = average_direction;
     
 
 

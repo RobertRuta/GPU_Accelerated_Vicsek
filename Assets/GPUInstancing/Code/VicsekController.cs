@@ -152,6 +152,9 @@ public class VicsekController : MonoBehaviour {
 
         // Render
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
+
+
+        // WriteAverageVelocityToFile();
     }
 
     void OnApplicationQuit()
@@ -171,10 +174,12 @@ public class VicsekController : MonoBehaviour {
             sum += debugArray[i].y;
         }
         float average = sum / (float)particleCount;
-        print(average);
+        // print(average);
 
         SaveFloatsToCSV(debugArray_x, "debugArray_x.csv");
         SaveFloatsToCSV(debugArray_y, "debugArray_y.csv");
+
+
     }
     void SaveFloatsToCSV(float[] floatArray, string fileName)
     {
@@ -188,21 +193,41 @@ public class VicsekController : MonoBehaviour {
     }
 
 
+    void WriteAverageVelocityToFile()
+    {
+        Particle [] particleArray = new Particle[particleCount];
+        particleBuffer.GetData(particleArray);
+        Vector4 sum_vector = Vector4.zero;
+        for (int i = 0; i < particleCount; i++)
+        {
+            sum_vector += particleArray[i].velocity;
+        }
+        Vector3 ave_velocity = new Vector3(sum_vector.x, sum_vector.y, sum_vector.z);
+        string ave_vel_str = ave_velocity.x + ", " + ave_velocity.y + ", " + ave_velocity.z;
+        // print("Average velocity: " + ave_vel_str);
+
+        using (StreamWriter writer = File.AppendText("./data_analysis/average_velocities.txt"))
+        {
+            writer.WriteLine(ave_vel_str);
+        }
+    }
+
+
     void OnGUI() {
         GUI.Label(new Rect(265, 15, 200, 30), "Particle Count: " + particleCount.ToString());
         particleCount = (int)GUI.HorizontalSlider(new Rect(25, 20, 200, 30), (float)particleCount, 1.0f, Mathf.Pow(2,21)+1);
         
-        GUI.Label(new Rect(265, 45, 200, 30), "Box width: " + box_width.ToString() + "m");
-        box_width = GUI.HorizontalSlider(new Rect(25, 50, 200, 30), box_width, box_range.x, box_range.y);
+        // GUI.Label(new Rect(265, 45, 200, 30), "Box width: " + box_width.ToString() + "m");
+        // box_width = GUI.HorizontalSlider(new Rect(25, 50, 200, 30), box_width, box_range.x, box_range.y);
 
-        GUI.Label(new Rect(265, 75, 200, 30), "Neighbour radius: " + radius.ToString() + "m");
-        radius = GUI.HorizontalSlider(new Rect(25, 80, 200, 30), radius, radius_range.x, radius_range.y);
+        GUI.Label(new Rect(265, 45, 200, 30), "Neighbour radius: " + radius.ToString() + "m");
+        radius = GUI.HorizontalSlider(new Rect(25, 50, 200, 30), radius, radius_range.x, radius_range.y);
         
-        GUI.Label(new Rect(265, 105, 200, 30), "Noise: " + noise.ToString() + "");
-        noise = GUI.HorizontalSlider(new Rect(25, 110, 200, 30), noise, 0.0f, 1f);
+        GUI.Label(new Rect(265, 75, 200, 30), "Noise: " + noise.ToString() + "");
+        noise = GUI.HorizontalSlider(new Rect(25, 80, 200, 30), noise, 0.0f, 1f);
         
-        GUI.Label(new Rect(265, 135, 200, 30), "Particle Size: " + particleSize.ToString() + "");
-        particleSize = GUI.HorizontalSlider(new Rect(25, 140, 200, 30), particleSize, 0.05f, 5f);
+        GUI.Label(new Rect(265, 105, 200, 30), "Particle Size: " + particleSize.ToString() + "");
+        particleSize = GUI.HorizontalSlider(new Rect(25, 110, 200, 30), particleSize, 0.05f, 5f);
 
         GUI.Label(new Rect(800, 15, 200, 60), "Initial Particle Density \n" + particleDensity.ToString("F3") + " particles/m^3");
         GUI.Label(new Rect(800, 75, 200, 60), "Initial Particle Cell Density \n" + particleCellDensity.ToString("F3") + " particles/cell");
@@ -459,5 +484,9 @@ public class VicsekController : MonoBehaviour {
         if (argsBuffer != null)
             argsBuffer.Release();
         argsBuffer = null;
+
+        if (debugBuffer != null)
+            debugBuffer.Release();
+        debugBuffer = null;
     }
 }
