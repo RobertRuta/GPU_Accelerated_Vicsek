@@ -1,0 +1,388 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel DistributeOnSphere
+#pragma kernel ParticleUpdate
+#pragma kernel OptimizedParticleUpdate
+#pragma kernel RearrangeParticleIDs
+#pragma kernel BuildStartEndIDs
+
+struct Particle
+{
+    float4 position;
+    float4 velocity;
+};
+
+struct Cell
+{
+    int is_full;
+};
+
+RWStructuredBuffer<Particle> particleBuffer;
+RWStructuredBuffer<float3> positionBuffer;
+RWStructuredBuffer<Cell> cellBuffer;
+RWStructuredBuffer<uint> cellIDs;
+RWStructuredBuffer<uint> particleIDs;
+RWStructuredBuffer<uint> keys;
+RWStructuredBuffer<uint2> startendIDs;
+
+RWStructuredBuffer<float4> debugBuffer;
+
+Texture2D NoiseTexture;
+SamplerState samplerNoiseTexture;
+
+static const float PI = 3.141592653589793;
+
+float dt;
+float time;
+int particle_count;
+float radius;
+float speed;
+float noise;
+float3 box;
+uint3 grid_dims;
+float particleSize;
+
+
+void BoundToBox(inout float3 pos)
+{
+    if(pos.x > box.x)
+    {
+       pos.x -= box.x;
+    }
+    if(pos.x < 0.0)
+    {
+        pos.x += box.x;
+    }
+    if(pos.y > box.y)
+    {
+        pos.y -= box.y;
+    }
+    if(pos.y < 0.0)
+    {
+        pos.y += box.y;
+    }
+    if(pos.z > box.z)
+    {
+        pos.z -= box.z;
+    }
+    if(pos.z < 0.0)
+    {
+        pos.z += box.z;
+    }
+}
+
+
+uint CalcCellId(int3 cell_xyz)
+{
+    uint X = cell_xyz.x;
+    uint Y = cell_xyz.y;
+    uint Z = cell_xyz.z;
+    return X + grid_dims.x * Y + grid_dims.x * grid_dims.y * Z;
+}
+
+int3 CalcCellCoords(float3 pos)
+{
+    float cell_dim = radius;
+    // cell {0, 0, 0} is found at coordinate origin and has index 0
+    int cell_X = floor(pos.x / cell_dim);
+    int cell_Y = floor(pos.y / cell_dim);
+    int cell_Z = floor(pos.z / cell_dim);
+    int3 cell_xyz = int3(cell_X, cell_Y, cell_Z);
+
+    return cell_xyz;
+}
+
+
+// Random number generation
+int rng_state;
+uint s[4];
+
+uint rotl(uint x, int k)
+{
+	return (x << k) | (x >> (32 - k));
+}
+
+uint xorshift128plus()
+{
+    // Initialise rng seeder with some big primes
+    s[0] = 27538393;
+    s[1] = 88067389;
+    s[2] = 67901627;
+    s[3] = 36402433;
+
+    rng_state = s[0] + s[3];
+    uint t = s[1] << 9;
+
+	s[2] ^= s[0];
+	s[3] ^= s[1];
+	s[1] ^= s[2];
+	s[0] ^= s[3];
+
+	s[2] ^= t;
+
+	s[3] = rotl(s[3], 11);
+    return rng_state;
+}
+
+
+uint rand_xorshift()
+{
+	// Xorshift algorithm from George Marsaglia's paper
+	rng_state ^= (rng_state << 13);
+	rng_state ^= (rng_state >> 17);
+	rng_state ^= (rng_state << 5);
+	return rng_state;
+}
+
+
+float rand_float(uint id)
+{
+    rng_state = id;
+	float tmp = (1.0 / 4294967296.0);
+	return float(rand_xorshift()) * tmp;
+}
+
+
+float RandomRange(uint seed, float min, float max)
+{
+    float random_float = rand_float(seed);
+    random_float = random_float * (max - min) + min;
+    return random_float;
+}
+
+
+[numthreads(128,1,1)]
+void DistributeOnSphere (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    float3 position = positionBuffer[id.x];
+
+    uint time_seed_1 = (uint)((time * 877) % particle_count);
+    uint time_seed_2 = (uint)((time * 349) % particle_count);
+    float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
+    // float4 rand_vector = (NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f) - 0.5) * 2;
+    float4 rand_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f);
+    
+    float theta = rand_vector.x * PI;
+    float phi = rand_vector.y * 2 * PI;
+    float x = radius * cos(phi) *sin(theta);
+    float z = radius * sin(phi)*sin(theta);
+    float y = radius * cos(theta);
+
+    // positionBuffer[id.x] = normalize(rand_vector.xyz) * radius;
+    // positionBuffer[id.x] = float3(theta,phi,theta);
+    positionBuffer[id.x] = float3(x,y,z);
+}
+
+
+[numthreads(128,1,1)]
+void ParticleUpdate (uint3 id : SV_DispatchThreadID)
+{
+    Particle particle = particleBuffer[id.x];
+
+    float3 summed_velocity = float3(0,0,0);
+    // Loop through every other particle in the simulation
+    for (int i=0; i<particle_count; i++)
+    {
+        Particle neighbour = particleBuffer[i];
+
+        float distance = length(neighbour.position.xyz - particle.position.xyz);
+        if (distance < radius)
+        {
+            summed_velocity += neighbour.velocity.xyz;
+        }
+    }
+    float3 new_velocity = normalize(summed_velocity) * speed;
+
+    // particle.velocity.xyz = float3(0,1,0);
+    particle.velocity.xyz = new_velocity;
+    particle.position.xyz += particle.velocity.xyz*dt;
+
+    BoundToBox(particle.position.xyz);
+    particleBuffer[id.x] = particle;
+
+
+    // Grid Update
+    uint3 cell_pos = CalcCellCoords(particle.position.xyz);
+    uint cell_id = CalcCellId(cell_pos);
+    cellIDs[id.x] = cell_id;
+}
+
+
+float3 RodriguezRot(float3 v, float3 axis, float angle)
+{
+    float3 rotated_v = v * angle + cross(axis, angle) * sin(angle) + axis * dot(axis, v) * (1 - cos(angle));
+    return rotated_v;
+}
+
+
+float3 CartFromSpherical(float theta, float phi)
+{
+    float x = cos(phi)*sin(theta);
+    float z = sin(phi)*sin(theta);
+    float y = cos(theta);
+
+    return float3(x,y,z);
+}
+
+uint state;
+// XORShift PRNG
+uint rand()
+{
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state;
+}
+
+
+[numthreads(128,1,1)]
+void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
+{
+    uint p_id = particleIDs[id.x];
+    Particle particle = particleBuffer[p_id];
+    int3 cell_pos = CalcCellCoords(particle.position.xyz);
+    uint cell_id = CalcCellId(cell_pos);
+
+
+    /// CHECK NEIGHBOUR VELOCITIES ///
+    float3 summed_velocity = particle.velocity.xyz;
+    // Loop through neighbouring cells
+    for (int x = -1; x <= 1; x++){
+        for (int y = -1; y <= 1; y++){
+            for (int z = -1; z <= 1; z++){
+                // Compute neighbour cell coordinates
+                int3 neighbouring_cell_pos = cell_pos + int3(x, y, z);
+                neighbouring_cell_pos = int3(
+                    (neighbouring_cell_pos.x + grid_dims.x) % grid_dims.x,
+                    (neighbouring_cell_pos.y + grid_dims.y) % grid_dims.y,
+                    (neighbouring_cell_pos.z + grid_dims.z) % grid_dims.z
+                );
+                // Compute neighbour cell id from cell coordinates
+                uint neighbour_cell_id = CalcCellId(neighbouring_cell_pos);
+                // Check if neighbour cell is empty
+                if (cellBuffer[neighbour_cell_id].is_full == 1)
+                {
+                    uint start_id = startendIDs[neighbour_cell_id].x;
+                    uint end_id = startendIDs[neighbour_cell_id].y;
+                    if (end_id >= start_id)
+                    {
+                        // Loop through particles in neighbouring cell
+                        for (uint n_id = start_id; n_id <= end_id; n_id++)
+                        {
+                            Particle neighbour = particleBuffer[n_id];
+                            float distance = length(neighbour.position.xyz - particle.position.xyz);
+                            if (distance < radius)
+                                summed_velocity += neighbour.velocity.xyz;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Average neighbour direction is the normalized sum of neighbour velocities
+    float3 average_direction = normalize(summed_velocity);
+
+    
+    /// RANDOM NUMBER GENERATION ///
+    // Use time as seed for random float generator
+    uint time_seed_1 = (uint)((time * 877) % particle_count);
+    uint time_seed_2 = (uint)((time * 349) % particle_count);
+    float rand_float1 = rand_float(id.x + time_seed_1);
+    float rand_float2 = rand_float(id.x + time_seed_2);
+    // Random coordinates to be used for texture sampling
+    float2 uvx = float2(rand_float1, rand_float2);
+    // Get final random floats from noise texture
+    // float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).xyz;
+    // float3 random_direction = normalize((random_vector - 0.5)*2) ;
+    
+
+    /// RODRIGUES VECTOR ROTATION ///
+    // Define theta rotation axis
+    // average_direction = normalize(particle.velocity.xyz);
+    // float3 normal_vector = normalize(cross(average_direction, float3(1,1,1)));
+    // float theta_perturbation = (random_vector.z - 0.5)*2 * PI * noise;
+    // float theta_perturbation = acos(1 - 2*random_vector.z*noise);
+    // float theta_perturbation = random_vector.z * PI * noise;
+    // float phi_perturbation = (random_vector.x - 0.5)*2 * PI;
+    // Theta rotation of vector
+    // float3 first_rot = average_direction * cos(theta_perturbation) + cross(normal_vector, average_direction) * sin(theta_perturbation);
+    // Phi rotation of vector
+    // float3 second_rot = first_rot * cos(phi_perturbation) + cross(average_direction, first_rot) * sin(phi_perturbation) + average_direction * dot(first_rot, average_direction) * (1-cos(phi_perturbation));
+    // Result of second rotation is the perturbed velocity
+    // float3 new_velocity = average_direction;
+    
+    state = id.x ^ time_seed_1;
+    if (state == 0) state = time_seed_2;
+    float random_num_1 = rand() % 123456 / 123456.0;
+    float random_num_2 = rand() % 654321 / 654321.0;
+    float random_num_3 = rand() % 456123 / 456123.0;
+    // float theta_perturbation = (random_num_1 - 0.5)*2 * PI * noise;
+    float theta_perturbation = acos(1 - 2*random_num_1 * noise);
+    float phi_perturbation = random_num_2 * 2 * PI;
+    
+    float3 random_vector = float3((random_num_1 - 0.5)*2, (random_num_2 - 0.5)*2, (random_num_3 - 0.5)*2);
+    float3 other_vector = normalize(float3(average_direction.z, 0.0, average_direction.x));
+    // float3 diff_vec = (float3)(abs(average_direction) - abs(other_vector) < 0.1);
+    // bool3 sign_vec = -((float3)(other_vector > 0) * 2 - 1.0);
+    // other_vector += diff_vec*sign_vec;
+
+
+    float3 normal_vector = normalize(cross(average_direction, other_vector));
+    // Theta rotation of vector
+    float3 first_rot = average_direction * cos(theta_perturbation) + cross(normal_vector, average_direction) * sin(theta_perturbation);
+    // Phi rotation of vector
+    float3 second_rot = first_rot * cos(phi_perturbation) + cross(average_direction, first_rot) * sin(phi_perturbation) + average_direction * dot(first_rot, average_direction) * (1-cos(phi_perturbation));
+    // Result of second rotation is the perturbed velocity
+    float3 new_velocity = second_rot;
+    // float3 new_velocity = average_direction;
+    
+
+
+    debugBuffer[id.x].xy = float2(theta_perturbation, random_num_2);
+
+
+    /// APPLY FINAL VELOCITIES AND MOVE PARTICLE ///
+    particle.velocity.xyz = new_velocity * speed;
+    particle.position.xyz += particle.velocity.xyz*dt;    
+    // Enforce Periodic Boundaries
+    BoundToBox(particle.position.xyz);
+    // Update particle in buffer
+    particleBuffer[p_id] = particle;
+    // Update particle size;
+    particleBuffer[p_id].position.w = particleSize;
+
+
+    /// GRID UPDATE ///
+    cell_pos = CalcCellCoords(particle.position.xyz);
+    cell_id = CalcCellId(cell_pos);
+    cellIDs[p_id] = cell_id;
+    // Reset cell buffer
+    cellBuffer[cell_id].is_full = 0;
+}
+
+
+[numthreads(128,1,1)]
+void RearrangeParticleIDs (uint3 id : SV_DispatchThreadID)
+{
+    particleIDs[id.x] = keys[id.x];
+    keys[id.x] = id.x;
+}
+
+
+[numthreads(128,1,1)]
+void BuildStartEndIDs (uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    uint p_id = particleIDs[i];
+    uint cell_id = cellIDs[p_id];
+    uint prev_cell_id = (i != 0) ? cellIDs[particleIDs[i-1]] : cellIDs[particleIDs[(uint)particle_count-1]];
+    uint next_cell_id = (i != (uint)particle_count-1) ? cellIDs[particleIDs[i+1]] : cellIDs[particleIDs[0]];
+
+    if (cell_id != prev_cell_id)
+        startendIDs[cell_id].x = i;
+    if (cell_id != next_cell_id)
+        startendIDs[cell_id].y = i;
+
+    // Specify which cells have particles
+    cellBuffer[cell_id].is_full = 1;
+}
