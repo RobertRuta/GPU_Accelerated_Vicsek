@@ -2,6 +2,7 @@ using UnityEngine;
 using BufferSorter;
 using System.Runtime.InteropServices;
 using System.IO;
+using vicsek;
 
 public class SimulationControl : MonoBehaviour {
 
@@ -44,16 +45,6 @@ public class SimulationControl : MonoBehaviour {
     
     
     // Simulation struct
-    struct Particle
-    {
-        public Vector4 position;
-        public Vector4 velocity;
-    }
-
-    struct Cell
-    {
-        public int is_full;
-    }
 
 
     // Simulation space and grid variables
@@ -65,7 +56,7 @@ public class SimulationControl : MonoBehaviour {
     [SerializeField]
     Vector3Int grid_dims;
     [SerializeField]
-    int cellCount;
+    public int cellCount;
     
 
     // Third-party Sorter
@@ -73,12 +64,12 @@ public class SimulationControl : MonoBehaviour {
     
     
     // Compute buffers
-    private ComputeBuffer particleBuffer;
-    private ComputeBuffer particleIDBuffer;
-    private ComputeBuffer cellIDBuffer;
-    private ComputeBuffer debugBuffer;
-    ComputeBuffer keyBuffer;
-    ComputeBuffer startendIDBuffer;
+    public ComputeBuffer particleBuffer;
+    public ComputeBuffer particleIDBuffer;
+    public ComputeBuffer cellIDBuffer;
+    public ComputeBuffer debugBuffer;
+    public ComputeBuffer keyBuffer;
+    public ComputeBuffer startendIDBuffer;
     int particleRearrangeKernel;
     int startendIDKernel;
     int startend_group_count;
@@ -87,7 +78,11 @@ public class SimulationControl : MonoBehaviour {
     const uint MAX_BUFFER_BYTES = 2147483648;
     int max_cell_count;
 
-
+    DebugControl debugger;
+    void Awake()
+    {
+        debugger = GetComponent<DebugControl>();
+    }
 
     void Start() {
         max_cell_count = (int)(MAX_BUFFER_BYTES / 8);
@@ -98,6 +93,7 @@ public class SimulationControl : MonoBehaviour {
         RecalcBoxRange();
         RecalcRadiusRange();
         InitiateSim();
+
 
         debugBuffer = new ComputeBuffer(particleCount, 4*4);
         Vector4 [] debugArray = new Vector4[particleCount];
@@ -139,79 +135,12 @@ public class SimulationControl : MonoBehaviour {
         // Build start end indices
         ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
 
-        
-        // Update Particle Positions
-        // ParticleCompute.Dispatch(particleUpdateKernel, group_count, 1, 1);
-        /// TEMPORARY DEBUG BUFFER ///
-        // float [] debugArray = new float[particleCount];
+
         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer", debugBuffer);
         ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
-        // debugBuffer.GetData(debugArray);
-        // for (int i = 0; i < 100; i++)
-        // {
-        //     print(i + ": " + debugArray[i]);
-        // }
 
-        // Render
+
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
-
-
-        // WriteAverageVelocityToFile();
-    }
-
-    void OnApplicationQuit()
-    {
-        Vector4 [] debugArray = new Vector4[particleCount];
-        debugBuffer.GetData(debugArray);
-        float [] debugArray_x = new float[particleCount];
-        float [] debugArray_y = new float[particleCount];
-        float [] debugArray_z = new float[particleCount];
-        float [] debugArray_w = new float[particleCount];
-
-        float sum = 0;
-        for (int i = 0; i < particleCount; i++)
-        {
-            debugArray_x[i] = debugArray[i].x;
-            debugArray_y[i] = debugArray[i].y;
-            sum += debugArray[i].y;
-        }
-        float average = sum / (float)particleCount;
-        // print(average);
-
-        SaveFloatsToCSV(debugArray_x, "debugArray_x.csv");
-        SaveFloatsToCSV(debugArray_y, "debugArray_y.csv");
-
-
-    }
-    void SaveFloatsToCSV(float[] floatArray, string fileName)
-    {
-        using (StreamWriter file = new StreamWriter(fileName))
-        {
-            foreach (float f in floatArray)
-            {
-                file.WriteLine(f);
-            }
-        }
-    }
-
-
-    void WriteAverageVelocityToFile()
-    {
-        Particle [] particleArray = new Particle[particleCount];
-        particleBuffer.GetData(particleArray);
-        Vector4 sum_vector = Vector4.zero;
-        for (int i = 0; i < particleCount; i++)
-        {
-            sum_vector += particleArray[i].velocity;
-        }
-        Vector3 ave_velocity = new Vector3(sum_vector.x, sum_vector.y, sum_vector.z);
-        string ave_vel_str = ave_velocity.x + ", " + ave_velocity.y + ", " + ave_velocity.z;
-        // print("Average velocity: " + ave_vel_str);
-
-        using (StreamWriter writer = File.AppendText("./data_analysis/average_velocities.txt"))
-        {
-            writer.WriteLine(ave_vel_str);
-        }
     }
 
 
@@ -236,32 +165,6 @@ public class SimulationControl : MonoBehaviour {
     }
 
     // Helper functions
-    void Debug(string after)
-    {
-        if (debug_toggle){
-            Particle[] particles = new Particle[particleCount];
-            uint[] values = new uint[particleCount];
-            uint[] particle_ids = new uint[particleCount];
-            uint[] keys = new uint[particleCount];
-            Vector2Int[] startend = new Vector2Int[cellCount];
-            particleBuffer.GetData(particles);
-            particleIDBuffer.GetData(particle_ids);
-            keyBuffer.GetData(keys);
-            cellIDBuffer.GetData(values);
-            startendIDBuffer.GetData(startend);
-            for (int i = 0; i < 10; i++)
-            {
-                print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ i + "]: " + startend[i]);
-            }
-
-            for (int k = 0; k < 10; k++)
-            {
-                int i = particleCount - 10 + k;
-                int j = cellCount - 10 + k;
-                print("After " + after + " | ParticleID["+ i + "]: " + particle_ids[i] + " | particle["+ particle_ids[i] + "]: " + particles[particle_ids[i]].position + ", " + particles[particle_ids[i]].velocity + " | keys[" + i + "]: " + keys[i] + " | grid[" + i + "]: " + values[i] + " | grid[keys[" + i + "]]: " + values[keys[i]]  + " | grid[particle_id[" + i + "]]: " + values[particle_ids[i]] + " | start_end["+ j + "]: " + startend[j]);
-            } 
-        }
-    }
 
 
     void RecalcRadiusRange(){
