@@ -127,6 +127,7 @@ public class DebugControl : MonoBehaviour {
         uint[] particle_ids = new uint[sim.particleCount];
         uint[] keys = new uint[sim.particleCount];
         Vector2Int[] startend = new Vector2Int[sim.cellCount];
+        debugArray = new Vector4[sim.particleCount];
         sim.particleBuffer.GetData(particles);
         sim.particleIDBuffer.GetData(particle_ids);
         sim.keyBuffer.GetData(keys);
