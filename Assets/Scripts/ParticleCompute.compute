@@ -1,9 +1,13 @@
 // Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel DistributeOnSphere
+
 #pragma kernel ParticleUpdate
 #pragma kernel OptimizedParticleUpdate
 #pragma kernel RearrangeParticleIDs
 #pragma kernel BuildStartEndIDs
+
+#include "simulation_variables.cginc"
+#include "noise_utility.cginc"
+#include "grid_utility.cginc"
 
 struct Particle
 {
@@ -29,149 +33,7 @@ RWStructuredBuffer<float4> debugBuffer;
 Texture2D NoiseTexture;
 SamplerState samplerNoiseTexture;
 
-static const float PI = 3.141592653589793;
 
-float dt;
-float time;
-int particle_count;
-float radius;
-float speed;
-float noise;
-float3 box;
-uint3 grid_dims;
-float particleSize;
-
-
-void BoundToBox(inout float3 pos)
-{
-    if(pos.x > box.x)
-    {
-       pos.x -= box.x;
-    }
-    if(pos.x < 0.0)
-    {
-        pos.x += box.x;
-    }
-    if(pos.y > box.y)
-    {
-        pos.y -= box.y;
-    }
-    if(pos.y < 0.0)
-    {
-        pos.y += box.y;
-    }
-    if(pos.z > box.z)
-    {
-        pos.z -= box.z;
-    }
-    if(pos.z < 0.0)
-    {
-        pos.z += box.z;
-    }
-}
-
-
-uint CalcCellId(int3 cell_xyz)
-{
-    uint X = cell_xyz.x;
-    uint Y = cell_xyz.y;
-    uint Z = cell_xyz.z;
-    return X + grid_dims.x * Y + grid_dims.x * grid_dims.y * Z;
-}
-
-int3 CalcCellCoords(float3 pos)
-{
-    float cell_dim = radius;
-    // cell {0, 0, 0} is found at coordinate origin and has index 0
-    int cell_X = floor(pos.x / cell_dim);
-    int cell_Y = floor(pos.y / cell_dim);
-    int cell_Z = floor(pos.z / cell_dim);
-    int3 cell_xyz = int3(cell_X, cell_Y, cell_Z);
-
-    return cell_xyz;
-}
-
-
-// Random number generation
-int rng_state;
-uint s[4];
-
-uint rotl(uint x, int k)
-{
-	return (x << k) | (x >> (32 - k));
-}
-
-uint xorshift128plus()
-{
-    // Initialise rng seeder with some big primes
-    s[0] = 27538393;
-    s[1] = 88067389;
-    s[2] = 67901627;
-    s[3] = 36402433;
-
-    rng_state = s[0] + s[3];
-    uint t = s[1] << 9;
-
-	s[2] ^= s[0];
-	s[3] ^= s[1];
-	s[1] ^= s[2];
-	s[0] ^= s[3];
-
-	s[2] ^= t;
-
-	s[3] = rotl(s[3], 11);
-    return rng_state;
-}
-
-
-uint rand_xorshift()
-{
-	// Xorshift algorithm from George Marsaglia's paper
-	rng_state ^= (rng_state << 13);
-	rng_state ^= (rng_state >> 17);
-	rng_state ^= (rng_state << 5);
-	return rng_state;
-}
-
-
-float rand_float(uint id)
-{
-    rng_state = id;
-	float tmp = (1.0 / 4294967296.0);
-	return float(rand_xorshift()) * tmp;
-}
-
-
-float RandomRange(uint seed, float min, float max)
-{
-    float random_float = rand_float(seed);
-    random_float = random_float * (max - min) + min;
-    return random_float;
-}
-
-
-[numthreads(128,1,1)]
-void DistributeOnSphere (uint3 id : SV_DispatchThreadID)
-{
-    // TODO: insert actual code here!
-    float3 position = positionBuffer[id.x];
-
-    uint time_seed_1 = (uint)((time * 877) % particle_count);
-    uint time_seed_2 = (uint)((time * 349) % particle_count);
-    float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
-    // float4 rand_vector = (NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f) - 0.5) * 2;
-    float4 rand_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f);
-    
-    float theta = rand_vector.x * PI;
-    float phi = rand_vector.y * 2 * PI;
-    float x = radius * cos(phi) *sin(theta);
-    float z = radius * sin(phi)*sin(theta);
-    float y = radius * cos(theta);
-
-    // positionBuffer[id.x] = normalize(rand_vector.xyz) * radius;
-    // positionBuffer[id.x] = float3(theta,phi,theta);
-    positionBuffer[id.x] = float3(x,y,z);
-}
 
 
 [numthreads(128,1,1)]
@@ -203,33 +65,7 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 }
 
 
-float3 RodriguezRot(float3 v, float3 axis, float angle)
-{
-    float3 rotated_v = v * angle + cross(axis, angle) * sin(angle) + axis * dot(axis, v) * (1 - cos(angle));
-    return rotated_v;
-}
-
-
-float3 CartFromSpherical(float theta, float phi)
-{
-    float x = cos(phi)*sin(theta);
-    float z = sin(phi)*sin(theta);
-    float y = cos(theta);
-
-    return float3(x,y,z);
-}
-
-uint state;
-// XORShift PRNG
-uint rand()
-{
-    state ^= state << 13;
-    state ^= state >> 17;
-    state ^= state << 5;
-    return state;
-}
-
-
+// uint state;
 [numthreads(128,1,1)]
 void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 {
