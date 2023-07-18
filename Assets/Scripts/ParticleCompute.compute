@@ -199,12 +199,6 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     BoundToBox(particle.position.xyz);
     particleBuffer[id.x] = particle;
-
-
-    // Grid Update
-    uint3 cell_pos = CalcCellCoords(particle.position.xyz);
-    uint cell_id = CalcCellId(cell_pos);
-    cellIDs[id.x] = cell_id;
 }
 
 

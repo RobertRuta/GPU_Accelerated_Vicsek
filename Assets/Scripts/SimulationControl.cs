@@ -72,6 +72,7 @@ public class SimulationControl : MonoBehaviour {
     int startendIDKernel;
     int startend_group_count;
     ComputeBuffer cellBuffer;
+    public bool optimized;
 
     const uint MAX_BUFFER_BYTES = 2147483648;
     int max_cell_count;
@@ -123,19 +124,27 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetFloat("particleSize", particleSize);
         ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
 
-        // Sort keys such that cellIDBuffer is ascending
-        sorter.Sort(keyBuffer, cellIDBuffer);
+        if (optimized)
+        {
+            // Sort keys such that cellIDBuffer is ascending
+            sorter.Sort(keyBuffer, cellIDBuffer);
 
-        // Rearrange particleIDsBuffer based on keyBuffer
-        ParticleCompute.SetBuffer(particleRearrangeKernel, "particleIDs", particleIDBuffer);
-        ParticleCompute.Dispatch(particleRearrangeKernel, group_count, 1, 1);
-        
-        // Build start end indices
-        ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
+            // Rearrange particleIDsBuffer based on keyBuffer
+            ParticleCompute.SetBuffer(particleRearrangeKernel, "particleIDs", particleIDBuffer);
+            ParticleCompute.Dispatch(particleRearrangeKernel, group_count, 1, 1);
+            
+            // Build start end indices
+            ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
 
 
-        ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer", debugBuffer);
-        ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
+            ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer", debugBuffer);
+            ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
+        }
+
+        else
+        {
+            ParticleCompute.Dispatch(particleUpdateKernel, group_count, 1, 1);
+        }
 
 
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
@@ -169,7 +178,7 @@ public class SimulationControl : MonoBehaviour {
         InitiateSorter();
         InitiateRearrange(keyBuffer, particleIDBuffer);
         InitiateStartEndIDs(startendIDBuffer, particleIDBuffer, cellIDBuffer);
-        // InitiateParticleUpdate(particleBuffer, cellIDBuffer);
+        InitiateParticleUpdate(particleBuffer);
         InitiateOptimizedParticleUpdate(particleBuffer, cellIDBuffer, startendIDBuffer, particleIDBuffer);
         InitiateArgs();
 
@@ -299,11 +308,10 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
-    void InitiateParticleUpdate(ComputeBuffer particleBuffer, ComputeBuffer cellIDBuffer)
+    void InitiateParticleUpdate(ComputeBuffer particleBuffer)
     {
         ParticleCompute.SetFloat("radius", radius);
         ParticleCompute.SetBuffer(particleUpdateKernel, "particleBuffer", particleBuffer);
-        ParticleCompute.SetBuffer(particleUpdateKernel, "cellIDs", cellIDBuffer);
     }
 
 
