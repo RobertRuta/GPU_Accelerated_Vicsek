@@ -196,10 +196,10 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
     // particle.velocity.xyz = float3(0,1,0);
     particle.velocity.xyz = new_velocity;
     particle.position.xyz += particle.velocity.xyz*dt;
+    particle.position.w = particleSize;
 
     BoundToBox(particle.position.xyz);
     particleBuffer[id.x] = particle;
-    particleBuffer[id.x].position.w = particleSize;
 }
 
 
