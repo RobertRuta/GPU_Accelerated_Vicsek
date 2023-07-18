@@ -9,6 +9,7 @@
 #include "noise_utility.cginc"
 #include "grid_utility.cginc"
 
+
 struct Particle
 {
     float4 position;
@@ -20,6 +21,7 @@ struct Cell
     int is_full;
 };
 
+
 RWStructuredBuffer<Particle> particleBuffer;
 RWStructuredBuffer<float3> positionBuffer;
 RWStructuredBuffer<Cell> cellBuffer;
@@ -27,12 +29,10 @@ RWStructuredBuffer<uint> cellIDs;
 RWStructuredBuffer<uint> particleIDs;
 RWStructuredBuffer<uint> keys;
 RWStructuredBuffer<uint2> startendIDs;
-
 RWStructuredBuffer<float4> debugBuffer;
 
 Texture2D NoiseTexture;
 SamplerState samplerNoiseTexture;
-
 
 
 
@@ -65,7 +65,7 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 }
 
 
-// uint state;
+
 [numthreads(128,1,1)]
 void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 {
@@ -75,7 +75,8 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     uint cell_id = CalcCellId(cell_pos);
 
 
-    /// CHECK NEIGHBOUR VELOCITIES ///
+    ////////// ------ CHECK NEIGHBOUR VELOCITIES ------ ////////// 
+    
     float3 summed_velocity = particle.velocity.xyz;
     // Loop through neighbouring cells
     for (int x = -1; x <= 1; x++){
@@ -114,48 +115,26 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     float3 average_direction = normalize(summed_velocity);
 
     
-    /// RANDOM NUMBER GENERATION ///
+    ////////// ------ RANDOM NUMBER GENERATION ------ //////////
+
     // Use time as seed for random float generator
     uint time_seed_1 = (uint)((time * 877) % particle_count);
     uint time_seed_2 = (uint)((time * 349) % particle_count);
-    float rand_float1 = rand_float(id.x + time_seed_1);
-    float rand_float2 = rand_float(id.x + time_seed_2);
-    // Random coordinates to be used for texture sampling
-    float2 uvx = float2(rand_float1, rand_float2);
-    // Get final random floats from noise texture
-    // float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).xyz;
-    // float3 random_direction = normalize((random_vector - 0.5)*2) ;
-    
-
-    /// RODRIGUES VECTOR ROTATION ///
-    // Define theta rotation axis
-    // average_direction = normalize(particle.velocity.xyz);
-    // float3 normal_vector = normalize(cross(average_direction, float3(1,1,1)));
-    // float theta_perturbation = (random_vector.z - 0.5)*2 * PI * noise;
-    // float theta_perturbation = acos(1 - 2*random_vector.z*noise);
-    // float theta_perturbation = random_vector.z * PI * noise;
-    // float phi_perturbation = (random_vector.x - 0.5)*2 * PI;
-    // Theta rotation of vector
-    // float3 first_rot = average_direction * cos(theta_perturbation) + cross(normal_vector, average_direction) * sin(theta_perturbation);
-    // Phi rotation of vector
-    // float3 second_rot = first_rot * cos(phi_perturbation) + cross(average_direction, first_rot) * sin(phi_perturbation) + average_direction * dot(first_rot, average_direction) * (1-cos(phi_perturbation));
-    // Result of second rotation is the perturbed velocity
-    // float3 new_velocity = average_direction;
-    
     state = id.x ^ time_seed_1;
     if (state == 0) state = time_seed_2;
     float random_num_1 = rand() % 123456 / 123456.0;
     float random_num_2 = rand() % 654321 / 654321.0;
     float random_num_3 = rand() % 456123 / 456123.0;
+    
+    
+    ////////// ------ RODRIGUES VECTOR ROTATION ------ //////////
+
     // float theta_perturbation = (random_num_1 - 0.5)*2 * PI * noise;
     float theta_perturbation = acos(1 - 2*random_num_1 * noise);
     float phi_perturbation = random_num_2 * 2 * PI;
     
     float3 random_vector = float3((random_num_1 - 0.5)*2, (random_num_2 - 0.5)*2, (random_num_3 - 0.5)*2);
     float3 other_vector = normalize(float3(average_direction.z, 0.0, average_direction.x));
-    // float3 diff_vec = (float3)(abs(average_direction) - abs(other_vector) < 0.1);
-    // bool3 sign_vec = -((float3)(other_vector > 0) * 2 - 1.0);
-    // other_vector += diff_vec*sign_vec;
 
 
     float3 normal_vector = normalize(cross(average_direction, other_vector));
@@ -166,13 +145,10 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     // Result of second rotation is the perturbed velocity
     float3 new_velocity = second_rot;
     // float3 new_velocity = average_direction;
-    
 
 
-    debugBuffer[id.x].xy = float2(theta_perturbation, random_num_2);
+    ////////// ------ UPDATE PARTICLE POSITION AND VELOCITY ------ //////////
 
-
-    /// APPLY FINAL VELOCITIES AND MOVE PARTICLE ///
     particle.velocity.xyz = new_velocity * speed;
     particle.position.xyz += particle.velocity.xyz*dt;    
     // Enforce Periodic Boundaries
@@ -183,13 +159,20 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     particleBuffer[p_id].position.w = particleSize;
 
 
-    /// GRID UPDATE ///
+    ////////// ------ UPDATE GRID ------ //////////
+
     cell_pos = CalcCellCoords(particle.position.xyz);
     cell_id = CalcCellId(cell_pos);
     cellIDs[p_id] = cell_id;
     // Reset cell buffer
     cellBuffer[cell_id].is_full = 0;
+    
+    
+    ////////// ------ DEBUG BUFFER ------ //////////
+
+    debugBuffer[id.x].xy = float2(theta_perturbation, random_num_2);
 }
+
 
 
 [numthreads(128,1,1)]
@@ -198,6 +181,7 @@ void RearrangeParticleIDs (uint3 id : SV_DispatchThreadID)
     particleIDs[id.x] = keys[id.x];
     keys[id.x] = id.x;
 }
+
 
 
 [numthreads(128,1,1)]
