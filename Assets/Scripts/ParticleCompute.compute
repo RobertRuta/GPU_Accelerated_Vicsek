@@ -199,6 +199,7 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     BoundToBox(particle.position.xyz);
     particleBuffer[id.x] = particle;
+    particleBuffer[id.x].position.w = particleSize;
 }
 
 
