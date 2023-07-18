@@ -1,6 +1,6 @@
 #pragma kernel DistributeOnSphere
-#include <"noise_utility.cginc">
-#include <"simulation_variables.cginc">
+#include <"../../../ComputeShaders/noise_utility.cginc">
+#include <"../../../ComputeShaders/simulation_variables.cginc">
 
 
 RWStructuredBuffer<float3> positionBuffer;
