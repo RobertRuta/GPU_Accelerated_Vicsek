@@ -171,7 +171,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     
     ////////// ------ DEBUG BUFFER ------ //////////
 
-    debugBuffer[id.x].xy = float2(theta_perturbation, random_num_2);
+    debugBuffer[id.x].xyz = float3(random_num_1, random_num_2, random_num_3);
 }
 
 
