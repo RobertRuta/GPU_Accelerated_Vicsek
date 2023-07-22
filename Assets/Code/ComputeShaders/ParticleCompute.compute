@@ -75,7 +75,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     uint cell_id = CalcCellId(cell_pos);
 
 
-    ////////// ------ CHECK NEIGHBOUR VELOCITIES ------ ////////// 
+    ////////// ------ SUM NEIGHBOUR VELOCITIES ------ ////////// 
     
     float3 summed_velocity = particle.velocity.xyz;
     // Loop through neighbouring cells
