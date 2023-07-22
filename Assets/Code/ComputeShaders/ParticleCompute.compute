@@ -99,9 +99,10 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
                     if (end_id >= start_id)
                     {
                         // Loop through particles in neighbouring cell
-                        for (uint n_id = start_id; n_id <= end_id; n_id++)
+                        for (uint i = start_id; i <= end_id; i++)
                         {
-                            Particle neighbour = particleBuffer[n_id];
+                            uint neighbour_id = particleIDs[i];
+                            Particle neighbour = particleBuffer[neighbour_id];
                             float distance = length(neighbour.position.xyz - particle.position.xyz);
                             if (distance < radius)
                                 summed_velocity += neighbour.velocity.xyz;
