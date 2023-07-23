@@ -84,3 +84,4 @@ uint rand()
     state ^= state << 5;
     return state;
 }
+

@@ -78,10 +78,11 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     ////////// ------ SUM NEIGHBOUR VELOCITIES ------ ////////// 
     
     float3 summed_velocity = particle.velocity.xyz;
+    int neighbour_counter = 0;
     // Loop through neighbouring cells
-    for (int x = -1; x <= 1; x++){
-        for (int y = -1; y <= 1; y++){
-            for (int z = -1; z <= 1; z++){
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
                 // Compute neighbour cell coordinates
                 int3 neighbouring_cell_pos = cell_pos + int3(x, y, z);
                 neighbouring_cell_pos = int3(
@@ -104,8 +105,10 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
                             uint neighbour_id = particleIDs[i];
                             Particle neighbour = particleBuffer[neighbour_id];
                             float distance = length(neighbour.position.xyz - particle.position.xyz);
-                            if (distance < radius)
+                            if (distance < radius) {
                                 summed_velocity += neighbour.velocity.xyz;
+                                neighbour_counter++;
+                            }
                         }
                     }
                 }
@@ -113,7 +116,8 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
         }
     }
     // Average neighbour direction is the normalized sum of neighbour velocities
-    float3 average_direction = normalize(summed_velocity);
+
+    // float3 average_direction = normalize(summed_velocity);
 
     
     ////////// ------ RANDOM NUMBER GENERATION ------ //////////
@@ -127,30 +131,13 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     float random_num_2 = rand() % 654321 / 654321.0;
     float random_num_3 = rand() % 456123 / 456123.0;
     
-    
-    ////////// ------ RODRIGUES VECTOR ROTATION ------ //////////
-
-    // float theta_perturbation = (random_num_1 - 0.5)*2 * PI * noise;
-    float theta_perturbation = acos(1 - 2*random_num_1 * noise);
-    float phi_perturbation = random_num_2 * 2 * PI;
-    
-    float3 random_vector = float3((random_num_1 - 0.5)*2, (random_num_2 - 0.5)*2, (random_num_3 - 0.5)*2);
-    float3 other_vector = normalize(float3(average_direction.z, 0.0, average_direction.x));
-
-
-    float3 normal_vector = normalize(cross(average_direction, other_vector));
-    // Theta rotation of vector
-    float3 first_rot = average_direction * cos(theta_perturbation) + cross(normal_vector, average_direction) * sin(theta_perturbation);
-    // Phi rotation of vector
-    float3 second_rot = first_rot * cos(phi_perturbation) + cross(average_direction, first_rot) * sin(phi_perturbation) + average_direction * dot(first_rot, average_direction) * (1-cos(phi_perturbation));
-    // Result of second rotation is the perturbed velocity
-    float3 new_velocity = second_rot;
-    // float3 new_velocity = average_direction;
-
+    float3 random_vector = float3(random_num_1, random_num_2, random_num_3) - 0.5;
+    float3 random_unit_vector = normalize(random_vector);
 
     ////////// ------ UPDATE PARTICLE POSITION AND VELOCITY ------ //////////
+    float3 new_velocity = normalize(summed_velocity + noise*neighbour_counter*random_unit_vector) * speed;
 
-    particle.velocity.xyz = new_velocity * speed;
+    particle.velocity.xyz = new_velocity;
     particle.position.xyz += particle.velocity.xyz*dt;    
     // Enforce Periodic Boundaries
     BoundToBox(particle.position.xyz);
