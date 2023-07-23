@@ -5,7 +5,7 @@
 #pragma kernel RearrangeParticleIDs
 #pragma kernel BuildStartEndIDs
 
-#include "simulation_variables.cginc"
+
 #include "noise_utility.cginc"
 #include "grid_utility.cginc"
 
@@ -127,15 +127,38 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     uint time_seed_2 = (uint)((time * 349) % particle_count);
     state = id.x ^ time_seed_1;
     if (state == 0) state = time_seed_2;
-    float random_num_1 = rand() % 123456 / 123456.0;
-    float random_num_2 = rand() % 654321 / 654321.0;
-    float random_num_3 = rand() % 456123 / 456123.0;
+
+    // float rand_float_1 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_2 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_3 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_4 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_5 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_6 = rand() % 1000000000 / 1000000000.0;
+
+    // float rand_float_1 = rand() % 123456789 / 123456789.0;
+    // float rand_float_2 = rand() % 987654321 / 987654321.0;
+    // float rand_float_3 = rand() % 123789456 / 123789456.0;
+    // float rand_float_4 = rand() % 987321654 / 987321654.0;
+    // float rand_float_5 = rand() % 456987789 / 456987789.0;
+    // float rand_float_6 = rand() % 321987345 / 321987345.0;
+
+
+    // float rand_norm_1 = box_muller_normal_random(rand_float_3, rand_float_4)[0];
+    // float rand_norm_2 = box_muller_normal_random(rand_float_6, rand_float_3)[0];
+    // float rand_norm_3 = box_muller_normal_random(rand_float_6, rand_float_3)[1];
+    // float rand_norm_3 = box_muller_normal_random(rand_float_5, rand_float_6)[0];
+
+
     
-    float3 random_vector = float3(random_num_1, random_num_2, random_num_3) - 0.5;
+    // float3 random_vector = float3(rand_norm_1, rand_norm_2, rand_norm_3);
+    float3 random_vector = hash(uint3(state, id.x, frame_counter)) - 0.5;
+    // float3 random_vector = float3(0, 1, 2);
     float3 random_unit_vector = normalize(random_vector);
+    // float3 random_unit_vector = random_vector;
 
     ////////// ------ UPDATE PARTICLE POSITION AND VELOCITY ------ //////////
-    float3 new_velocity = normalize(summed_velocity + noise*neighbour_counter*random_unit_vector) * speed;
+    float3 new_velocity = normalize(summed_velocity + noise*neighbour_counter*random_unit_vector*speed) * speed;
+    // float3 new_velocity = normalize(summed_velocity) + random_unit_vector * speed;
 
     particle.velocity.xyz = new_velocity;
     particle.position.xyz += particle.velocity.xyz*dt;    
@@ -158,7 +181,9 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     
     ////////// ------ DEBUG BUFFER ------ //////////
 
-    debugBuffer[id.x].xyz = float3(random_num_1, random_num_2, random_num_3);
+    // debugBuffer[id.x].xyzw = float4(rand_float_1, rand_float_2, rand_float_3, rand_float_4);
+    // debugBuffer[id.x].xyz = float3(rand_norm_1, rand_norm_2, rand_norm_3);
+    debugBuffer[id.x].xyz = random_unit_vector;
 }
 
 

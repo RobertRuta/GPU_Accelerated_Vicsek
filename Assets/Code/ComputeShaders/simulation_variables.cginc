@@ -9,3 +9,4 @@ float noise;
 float3 box;
 uint3 grid_dims;
 float particleSize;
+uint frame_counter;

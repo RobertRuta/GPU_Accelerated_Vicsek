@@ -61,6 +61,11 @@ public class DebugControl : MonoBehaviour {
             print_buffers = false;
         }
 
+
+        if (save_debug_to_file) {
+            WriteDebugBufferToFile();
+            save_debug_to_file = false;
+        }
     }
 
     
@@ -69,6 +74,7 @@ public class DebugControl : MonoBehaviour {
         GetBufferData();
         PreviewDebugBufferData();
         PrintBufferData("Application Quit");
+        WriteDebugBufferToFile();
     }  
 
     void GetBufferData()
@@ -83,6 +89,8 @@ public class DebugControl : MonoBehaviour {
     }
 
     void WriteDebugBufferToFile() {
+        debugArray = new Vector4[sim.particleCount];
+        sim.debugBuffer.GetData(debugArray);
         float[] debugArray_x = new float[sim.particleCount];
         float[] debugArray_y = new float[sim.particleCount];
         float[] debugArray_z = new float[sim.particleCount];
@@ -95,11 +103,12 @@ public class DebugControl : MonoBehaviour {
             debugArray_w[i] = debugArray[i].w;
         }
 
-        SaveFloatsToCSV(debugArray_x, "debugArray_x.csv");
-        SaveFloatsToCSV(debugArray_y, "debugArray_y.csv");
-        SaveFloatsToCSV(debugArray_z, "debugArray_z.csv");
-        SaveFloatsToCSV(debugArray_w, "debugArray_w.csv");
+        SaveFloatsToCSV(debugArray_x, "./debugArray_x.csv");
+        SaveFloatsToCSV(debugArray_y, "./debugArray_y.csv");
+        SaveFloatsToCSV(debugArray_z, "./debugArray_z.csv");
+        SaveFloatsToCSV(debugArray_w, "./debugArray_w.csv");
     }
+
 
     void PreviewDebugBufferData() 
     {
@@ -110,12 +119,9 @@ public class DebugControl : MonoBehaviour {
 
     void SaveFloatsToCSV(float[] floatArray, string fileName)
     {
-        using (StreamWriter file = new StreamWriter(fileName))
-        {
+        using (StreamWriter file = new StreamWriter(fileName)) {
             foreach (float f in floatArray)
-            {
                 file.WriteLine(f);
-            }
         }
     }
 

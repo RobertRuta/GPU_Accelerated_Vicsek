@@ -55,6 +55,7 @@ public class SimulationControl : MonoBehaviour {
     Vector3Int grid_dims;
     [SerializeField]
     public int cellCount;
+    int frameCounter = 0;
     
 
     // Third-party Sorter
@@ -123,6 +124,7 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetFloat("noise", noise);
         ParticleCompute.SetFloat("particleSize", particleSize);
         ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
+        ParticleCompute.SetInt("frameCounter", frameCounter);
 
         if (optimized)
         {
@@ -148,6 +150,7 @@ public class SimulationControl : MonoBehaviour {
 
 
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
+        frameCounter++;
     }
 
     // Helper functions

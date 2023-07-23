@@ -1,4 +1,4 @@
-
+#include "simulation_variables.cginc"
 
 // Random number generation
 int rng_state;
@@ -85,3 +85,30 @@ uint rand()
     return state;
 }
 
+
+float2 box_muller_normal_random(float rand1, float rand2)
+{
+    float r = sqrt(-2*log(rand1));
+    float x = cos(2*PI*rand1);
+    float y = sin(2*PI*rand2);
+
+    float z1 = r*x;
+    float z2 = r*y;
+    
+    return float2(z1, z2);
+}
+
+
+static const uint k = 1103515245;
+float3 hash( uint3 x )
+{
+    x = ((x>>8)^x.yzx)*k;
+    x = ((x>>8)^x.yzx)*k;
+    x = ((x>>8)^x.yzx)*k;
+    // x >>= 8;
+    // x ^= x.yzx;
+    // x *= k;
+    
+    return float3(x)*(1.0/float(uint(0xffffffff)));
+    // return float3(x)*(1.0/float(uint(0xffffffff)));
+}
