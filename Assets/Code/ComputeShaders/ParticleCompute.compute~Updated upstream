@@ -116,39 +116,51 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
         }
     }
     // Average neighbour direction is the normalized sum of neighbour velocities
-    float3 average_direction = normalize(summed_velocity);
-    float3 average_velocity = average_direction * speed;
+
+    // float3 average_direction = normalize(summed_velocity);
 
     
     ////////// ------ RANDOM NUMBER GENERATION ------ //////////
 
     // Use time as seed for random float generator
-    // uint time_seed_2 = (uint)((time * 349) % particle_count);
-    uint time_seed = (uint)(time * 8000) % uint(0xffffffff);
-    uint frame_seed = (uint)(frame_counter * 8000) % uint(0xffffffff);
-    uint particle_seed = id.x;
+    uint time_seed_1 = (uint)((time * 877) % particle_count);
+    uint time_seed_2 = (uint)((time * 349) % particle_count);
+<<<<<<< Updated upstream:Assets/Code/ComputeShaders/ParticleCompute.compute
+    state = id.x ^ time_seed_1;
+    if (state == 0) state = time_seed_2;
+=======
+    // Generate random floats
+    float2 uvx = float2(rand_float(id.x + time_seed_1), rand_float(id.x + time_seed_2));
+    // Use "random" floats to "randomly" sample noise texture
+    // float3 random_vector = NoiseTexture.SampleLevel(samplerNoiseTexture, uvx, 0.0f).rgb - 0.5;
+>>>>>>> Stashed changes:Assets/GPUInstancing/Code/ParticleCompute.compute
 
-    float3 normal_vector = RandomNormalVector(average_direction, uint3(time_seed, frame_seed, particle_seed));
+    // float rand_float_1 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_2 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_3 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_4 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_5 = rand() % 1000000000 / 1000000000.0;
+    // float rand_float_6 = rand() % 1000000000 / 1000000000.0;
+
+    // float rand_float_1 = rand() % 123456789 / 123456789.0;
+    // float rand_float_2 = rand() % 987654321 / 987654321.0;
+    // float rand_float_3 = rand() % 123789456 / 123789456.0;
+    // float rand_float_4 = rand() % 987321654 / 987321654.0;
+    // float rand_float_5 = rand() % 456987789 / 456987789.0;
+    // float rand_float_6 = rand() % 321987345 / 321987345.0;
+
+
+    // float rand_norm_1 = box_muller_normal_random(rand_float_3, rand_float_4)[0];
+    // float rand_norm_2 = box_muller_normal_random(rand_float_6, rand_float_3)[0];
+    // float rand_norm_3 = box_muller_normal_random(rand_float_6, rand_float_3)[1];
+    // float rand_norm_3 = box_muller_normal_random(rand_float_5, rand_float_6)[0];
+
+
     
-    RodriguezRot(average_direction, normal_vector, angle);
-
-
-
-    // state = id.x ^ time_seed_1;
-    // if (state == 0) state = time_seed_2;
-
-
-    // float3 random_vector = hash(uint3(state, id.x, frame_counter)) - 0.5;
-    // float3 u_rand = hash(uint3(p_id, id.x^time_seed_2, frame_counter));
-    // float3 u_rand2 = hash(uint3(state, id.x, frame_counter));
-    // float2 n_rand = box_muller_normal_random(u_rand.x, u_rand2.x);
-    // float2 n_rand2 = box_muller_normal_random(u_rand.y, u_rand2.y);
-
-    
-    // box_muller_normal_random();
-
-    // float3 random_unit_vector = normalize(float3(n_rand.x, n_rand.y, n_rand2.x));
-    // float3 random_unit_vector = normalize(random_vector);
+    // float3 random_vector = float3(rand_norm_1, rand_norm_2, rand_norm_3);
+    float3 random_vector = hash(uint3(state, id.x, frame_counter)) - 0.5;
+    // float3 random_vector = float3(0, 1, 2);
+    float3 random_unit_vector = normalize(random_vector);
     // float3 random_unit_vector = random_vector;
 
     ////////// ------ UPDATE PARTICLE POSITION AND VELOCITY ------ //////////
