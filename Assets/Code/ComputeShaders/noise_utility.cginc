@@ -57,3 +57,14 @@ float3 RandomNormalVector(float3 vec, uint3 seed) {
     float3 normal_vec = cross(vec, random_vector);
     return normalize(normal_vec);
 }
+
+
+// MurmurHash3 implementation
+uint MurmurHash3(uint seed) {
+    seed ^= seed >> 16;
+    seed *= 0x85ebca6b;
+    seed ^= seed >> 13;
+    seed *= 0xc2b2ae35;
+    seed ^= seed >> 16;
+    return seed;
+}

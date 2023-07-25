@@ -7,6 +7,7 @@
 
 
 #include "noise_utility.cginc"
+#include "xorshiro.cginc"
 #include "grid_utility.cginc"
 
 
@@ -30,6 +31,7 @@ RWStructuredBuffer<uint> particleIDs;
 RWStructuredBuffer<uint> keys;
 RWStructuredBuffer<uint2> startendIDs;
 RWStructuredBuffer<float4> debugBuffer;
+RWStructuredBuffer<float4> debugBuffer2;
 
 Texture2D NoiseTexture;
 SamplerState samplerNoiseTexture;
@@ -121,16 +123,38 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     
     ////////// ------ RANDOM NUMBER GENERATION ------ //////////
-
-    // Use time as seed for random float generator
-    // uint time_seed_2 = (uint)((time * 349) % particle_count);
-    uint time_seed = (uint)(time * 8000) % uint(0xffffffff);
-    uint frame_seed = (uint)(frame_counter * 8000) % uint(0xffffffff);
-    uint particle_seed = id.x;
-
-    float3 normal_vector = RandomNormalVector(average_direction, uint3(time_seed, frame_seed, particle_seed));
+    uint time_seed = (uint)(time*1000);
+    time_seed = MurmurHash3(time_seed);
+    uint particle_seed = MurmurHash3(id.x+1);
+    uint cell_seed = rotl(time_seed, cell_id);
     
-    RodriguezRot(average_direction, normal_vector, angle);
+    float3 random_vector = hash(uint3(time_seed, particle_seed, cell_seed));
+
+    
+    // // Combine the frame count, time value, and particle ID using bitwise operations
+    // uint combinedSeed = (frame_counter << 32) | (uint(time * 1000.0) << 16) | p_id;
+
+    // // Use the combinedSeed value as the seed for the PRNG
+    // uint seed0 = combinedSeed;
+    // uint seed1 = (combinedSeed >> 8);
+    // uint seed2 = (combinedSeed >> 16);
+    // uint seed3 = (combinedSeed >> 24);
+    float rand_float1 = (float)Next() / (float)0xffffffff;
+    float rand_float2 = (float)Next() / (float)0xffffffff;
+    float rand_float3 = (float)Next() / (float)0xffffffff;
+    float rand_float4 = (float)Next() / (float)0xffffffff;
+
+
+    float3 new_direction = average_direction;
+    float3 normal_vector = float3(0,0,0);
+    float angle = 0;
+    if (perturb) {
+        normal_vector = RandomNormalVector(average_direction, uint3(time_seed, cell_seed, particle_seed));
+        angle = (float)particle_seed / (float)0xffffffff * PI * noise; // Random angle
+        new_direction = RodriguezRot(average_direction, normal_vector, angle);
+    }
+
+    // float3 new_direction = float3(1,1,1);
 
 
 
@@ -152,7 +176,8 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     // float3 random_unit_vector = random_vector;
 
     ////////// ------ UPDATE PARTICLE POSITION AND VELOCITY ------ //////////
-    float3 new_velocity = normalize(summed_velocity + noise*neighbour_counter*random_unit_vector*speed) * speed;
+    float3 new_velocity = new_direction * speed;
+    // float3 new_velocity = normalize(summed_velocity + noise*neighbour_counter*random_unit_vector*speed) * speed;
     // float3 new_velocity = normalize(summed_velocity) + random_unit_vector * speed;
 
     particle.velocity.xyz = new_velocity;
@@ -178,7 +203,10 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     // debugBuffer[id.x].xyzw = float4(rand_float_1, rand_float_2, rand_float_3, rand_float_4);
     // debugBuffer[id.x].xyz = float3(rand_norm_1, rand_norm_2, rand_norm_3);
-    debugBuffer[id.x].xyz = random_unit_vector;
+    // debugBuffer[id.x].xyz = random_unit_vector;
+    // debugBuffer[id.x].xyz = ;
+    debugBuffer[id.x] = float4(average_direction, particle_seed);
+
 }
 
 

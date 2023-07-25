@@ -11,6 +11,8 @@ public class SimulationControl : MonoBehaviour {
     public float speed = 5;
     public float noise = 1.0f;
     public float particleSize = 0.05f;
+    public float perturbation_frequency = 0.2f;
+    float elapsed = 0;
     public bool debug_toggle = false;
     [SerializeField]
     public Vector2 radius_range;
@@ -66,7 +68,7 @@ public class SimulationControl : MonoBehaviour {
     public ComputeBuffer particleBuffer;
     public ComputeBuffer particleIDBuffer;
     public ComputeBuffer cellIDBuffer;
-    public ComputeBuffer debugBuffer;
+    public ComputeBuffer debugBuffer, debugBuffer2;
     public ComputeBuffer keyBuffer;
     public ComputeBuffer startendIDBuffer;
     int particleRearrangeKernel;
@@ -96,10 +98,13 @@ public class SimulationControl : MonoBehaviour {
 
 
         debugBuffer = new ComputeBuffer(particleCount, 4*4);
+        debugBuffer2 = new ComputeBuffer(particleCount, 4*4);
         Vector4 [] debugArray = new Vector4[particleCount];
+        Vector4 [] debugArray2 = new Vector4[particleCount];
         for (int i = 0; i < 100; i++)
         {
             debugArray[i] = Vector4.zero;
+            debugArray2[i] = Vector4.zero;
         }
     }
 
@@ -125,6 +130,15 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetFloat("particleSize", particleSize);
         ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
         ParticleCompute.SetInt("frameCounter", frameCounter);
+        
+        elapsed += Time.deltaTime;
+        if (elapsed >= perturbation_frequency) {
+            elapsed = 0.0f;
+            ParticleCompute.SetBool("perturb", true);
+        }
+        else
+            ParticleCompute.SetBool("perturb", true);
+
 
         if (optimized)
         {
@@ -140,6 +154,7 @@ public class SimulationControl : MonoBehaviour {
 
 
             ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer", debugBuffer);
+            ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer2", debugBuffer2);
             ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
         }
 
@@ -289,6 +304,13 @@ public class SimulationControl : MonoBehaviour {
         cachedBoxWidth = box_width;
         cachedRadius = radius;
         cachedSubMeshIndex = subMeshIndex;
+
+        // Seed the PRNG
+        int seed0 = (int)Random.Range(0, 0xffffffff);
+        int seed1 = (int)Random.Range(0, 0xffffffff);
+        int seed2 = (int)Random.Range(0, 0xffffffff);
+        int seed3 = (int)Random.Range(0, 0xffffffff);
+        ParticleCompute.SetInts("seeds", new [] {seed0, seed1, seed2, seed3});
     }
 
 
@@ -381,5 +403,9 @@ public class SimulationControl : MonoBehaviour {
         if (debugBuffer != null)
             debugBuffer.Release();
         debugBuffer = null;
+        
+        if (debugBuffer2 != null)
+            debugBuffer2.Release();
+        debugBuffer2 = null;
     }
 }

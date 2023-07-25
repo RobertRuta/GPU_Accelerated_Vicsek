@@ -17,13 +17,13 @@ See <http://creativecommons.org/publicdomain/zero/1.0/>. */
 
    The state must be seeded so that it is not everywhere zero. */
 
-uint s[4];
+uint seeds[4];
 
 void SeedXorPRNG(uint seed0, uint seed1, uint seed2, uint seed3) {
-    s[0] = seed0;
-    s[1] = seed1;
-    s[2] = seed2;
-    s[3] = seed3;
+    seeds[0] = seed0;
+    seeds[1] = seed1;
+    seeds[2] = seed2;
+    seeds[3] = seed3;
 }
 
 
@@ -34,18 +34,18 @@ uint rotl(const uint x, int k) {
 
 
 uint Next() {
-	const uint result = rotl(s[0] + s[3], 7) + s[0];
+	const uint result = rotl(seeds[0] + seeds[3], 7) + seeds[0];
 
-	const uint t = s[1] << 9;
+	const uint t = seeds[1] << 9;
 
-	s[2] ^= s[0];
-	s[3] ^= s[1];
-	s[1] ^= s[2];
-	s[0] ^= s[3];
+	seeds[2] ^= seeds[0];
+	seeds[3] ^= seeds[1];
+	seeds[1] ^= seeds[2];
+	seeds[0] ^= seeds[3];
 
-	s[2] ^= t;
+	seeds[2] ^= t;
 
-	s[3] = rotl(s[3], 11);
+	seeds[3] = rotl(seeds[3], 11);
 
 	return result;
 }
@@ -66,19 +66,19 @@ void Jump() {
     for (int i = 0; i < 4; i++) {
         for (int b = 0; b < 32; b++) {
             if ((JUMP[i] & (1u << b)) != 0) {
-                s0 ^= s[0];
-                s1 ^= s[1];
-                s2 ^= s[2];
-                s3 ^= s[3];
+                s0 ^= seeds[0];
+                s1 ^= seeds[1];
+                s2 ^= seeds[2];
+                s3 ^= seeds[3];
             }
             Next();
         }
     }
 
-    s[0] = s0;
-    s[1] = s1;
-    s[2] = s2;
-    s[3] = s3;
+    seeds[0] = s0;
+    seeds[1] = s1;
+    seeds[2] = s2;
+    seeds[3] = s3;
 }
 
 
@@ -98,16 +98,16 @@ void LongJump() {
 	for(int i = 0; i < 4; i++)
 		for(int b = 0; b < 32; b++) {
 			if (LONG_JUMP[i] & 1 << b) {
-				s0 ^= s[0];
-				s1 ^= s[1];
-				s2 ^= s[2];
-				s3 ^= s[3];
+				s0 ^= seeds[0];
+				s1 ^= seeds[1];
+				s2 ^= seeds[2];
+				s3 ^= seeds[3];
 			}
 			Next();	
 		}
 		
-	s[0] = s0;
-	s[1] = s1;
-	s[2] = s2;
-	s[3] = s3;
+	seeds[0] = s0;
+	seeds[1] = s1;
+	seeds[2] = s2;
+	seeds[3] = s3;
 }

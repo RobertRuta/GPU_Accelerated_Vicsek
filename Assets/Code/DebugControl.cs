@@ -12,7 +12,7 @@ public class DebugControl : MonoBehaviour {
     public bool save_debug_to_file = false;
     public bool get_buffers = false;
 
-    Vector4[] debugArray;
+    Vector4[] debugArray, debugArray2;
     [SerializeField]
     Vector4 sums, means;
 
@@ -90,23 +90,38 @@ public class DebugControl : MonoBehaviour {
 
     void WriteDebugBufferToFile() {
         debugArray = new Vector4[sim.particleCount];
+        debugArray2 = new Vector4[sim.particleCount];
         sim.debugBuffer.GetData(debugArray);
+        sim.debugBuffer2.GetData(debugArray2);
         float[] debugArray_x = new float[sim.particleCount];
         float[] debugArray_y = new float[sim.particleCount];
         float[] debugArray_z = new float[sim.particleCount];
         float[] debugArray_w = new float[sim.particleCount];
+        float[] debugArray_x_2 = new float[sim.particleCount];
+        float[] debugArray_y_2 = new float[sim.particleCount];
+        float[] debugArray_z_2 = new float[sim.particleCount];
+        float[] debugArray_w_2 = new float[sim.particleCount];
 
         for (int i = 0; i < sim.particleCount; i++) {
             debugArray_x[i] = debugArray[i].x;
             debugArray_y[i] = debugArray[i].y;
             debugArray_z[i] = debugArray[i].z;
             debugArray_w[i] = debugArray[i].w;
+            debugArray_x_2[i] = debugArray2[i].x;
+            debugArray_y_2[i] = debugArray2[i].y;
+            debugArray_z_2[i] = debugArray2[i].z;
+            debugArray_w_2[i] = debugArray2[i].w;
         }
 
         SaveFloatsToCSV(debugArray_x, "./debugArray_x.csv");
         SaveFloatsToCSV(debugArray_y, "./debugArray_y.csv");
         SaveFloatsToCSV(debugArray_z, "./debugArray_z.csv");
         SaveFloatsToCSV(debugArray_w, "./debugArray_w.csv");
+
+        SaveFloatsToCSV(debugArray_x_2, "./debugArray_x_2.csv");
+        SaveFloatsToCSV(debugArray_y_2, "./debugArray_y_2.csv");
+        SaveFloatsToCSV(debugArray_z_2, "./debugArray_z_2.csv");
+        SaveFloatsToCSV(debugArray_w_2, "./debugArray_w_2.csv");
     }
 
 
