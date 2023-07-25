@@ -33,7 +33,7 @@ uint rotl(const uint x, int k) {
 
 
 
-uint next() {
+uint Next() {
 	const uint result = rotl(s[0] + s[3], 7) + s[0];
 
 	const uint t = s[1] << 9;
@@ -55,29 +55,32 @@ uint next() {
    to 2^64 calls to next(); it can be used to generate 2^64
    non-overlapping subsequences for parallel computations. */
 
-void jump() {
-	static const uint JUMP[] = { 0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b };
+void Jump() {
+    static const uint JUMP[] = { 0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b };
 
-	uint s0 = 0;
-	uint s1 = 0;
-	uint s2 = 0;
-	uint s3 = 0;
-	for(int i = 0; i < sizeof JUMP / sizeof *JUMP; i++)
-		for(int b = 0; b < 32; b++) {
-			if (JUMP[i] & UINT32_C(1) << b) {
-				s0 ^= s[0];
-				s1 ^= s[1];
-				s2 ^= s[2];
-				s3 ^= s[3];
-			}
-			next();	
-		}
-		
-	s[0] = s0;
-	s[1] = s1;
-	s[2] = s2;
-	s[3] = s3;
+    uint s0 = 0;
+    uint s1 = 0;
+    uint s2 = 0;
+    uint s3 = 0;
+
+    for (int i = 0; i < 4; i++) {
+        for (int b = 0; b < 32; b++) {
+            if ((JUMP[i] & (1u << b)) != 0) {
+                s0 ^= s[0];
+                s1 ^= s[1];
+                s2 ^= s[2];
+                s3 ^= s[3];
+            }
+            Next();
+        }
+    }
+
+    s[0] = s0;
+    s[1] = s1;
+    s[2] = s2;
+    s[3] = s3;
 }
+
 
 
 /* This is the long-jump function for the generator. It is equivalent to
@@ -85,22 +88,22 @@ void jump() {
    from each of which jump() will generate 2^32 non-overlapping
    subsequences for parallel distributed computations. */
 
-void long_jump(void) {
+void LongJump() {
 	static const uint LONG_JUMP[] = { 0xb523952e, 0x0b6f099f, 0xccf5a0ef, 0x1c580662 };
 
 	uint s0 = 0;
 	uint s1 = 0;
 	uint s2 = 0;
 	uint s3 = 0;
-	for(int i = 0; i < sizeof LONG_JUMP / sizeof *LONG_JUMP; i++)
+	for(int i = 0; i < 4; i++)
 		for(int b = 0; b < 32; b++) {
-			if (LONG_JUMP[i] & UINT32_C(1) << b) {
+			if (LONG_JUMP[i] & 1 << b) {
 				s0 ^= s[0];
 				s1 ^= s[1];
 				s2 ^= s[2];
 				s3 ^= s[3];
 			}
-			next();	
+			Next();	
 		}
 		
 	s[0] = s0;
