@@ -4,6 +4,7 @@
 #pragma kernel OptimizedParticleUpdate
 #pragma kernel RearrangeParticleIDs
 #pragma kernel BuildStartEndIDs
+#pragma kernel ResetCellBuffer
 
 
 #include "noise_utility.cginc"
@@ -19,7 +20,7 @@ struct Particle
 
 struct Cell
 {
-    int is_full;
+    int count;
 };
 
 
@@ -32,6 +33,7 @@ RWStructuredBuffer<uint> keys;
 RWStructuredBuffer<uint2> startendIDs;
 RWStructuredBuffer<float4> debugBuffer;
 RWStructuredBuffer<float4> debugBuffer2;
+RWStructuredBuffer<float4> debugBuffer3;
 
 Texture2D NoiseTexture;
 SamplerState samplerNoiseTexture;
@@ -79,6 +81,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     ////////// ------ SUM NEIGHBOUR VELOCITIES ------ ////////// 
     
+    float3 init_velocity = particle.velocity.xyz;
     float3 summed_velocity = particle.velocity.xyz;
     int neighbour_counter = 0;
     // Loop through neighbouring cells
@@ -94,12 +97,12 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
                 );
                 // Compute neighbour cell id from cell coordinates
                 uint neighbour_cell_id = CalcCellId(neighbouring_cell_pos);
-                // Check if neighbour cell is empty
-                if (cellBuffer[neighbour_cell_id].is_full == 1)
+                // If neighbour cell is not empty
+                if (cellBuffer[neighbour_cell_id].count > 0)
                 {
                     uint start_id = startendIDs[neighbour_cell_id].x;
                     uint end_id = startendIDs[neighbour_cell_id].y;
-                    if (end_id >= start_id)
+                    if (end_id > start_id)
                     {
                         // Loop through particles in neighbouring cell
                         for (uint i = start_id; i <= end_id; i++)
@@ -124,35 +127,24 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     
     ////////// ------ RANDOM NUMBER GENERATION ------ //////////
     uint time_seed = (uint)(time*1000);
-    time_seed = MurmurHash3(time_seed);
-    uint particle_seed = MurmurHash3(id.x+1);
+    uint time_seed_2 = MurmurHash3(time_seed);
+    uint particle_seed = MurmurHash3(p_id+1);
+    uint particle_seed2 = MurmurHash3(particle_seed);
+    uint time_particle_seed = MurmurHash3(particle_seed + time_seed_2);
+    uint time_particle_seed2 = MurmurHash3(particle_seed2 + time_seed);
     uint cell_seed = rotl(time_seed, cell_id);
     
-    float3 random_vector = hash(uint3(time_seed, particle_seed, cell_seed));
+    float3 random_vector = hash(uint3(time_seed_2, particle_seed, cell_seed));
+    // random_vector = normalize((random_vector - 0.5) * 2);
 
-    
-    // // Combine the frame count, time value, and particle ID using bitwise operations
-    // uint combinedSeed = (frame_counter << 32) | (uint(time * 1000.0) << 16) | p_id;
-
-    // // Use the combinedSeed value as the seed for the PRNG
-    // uint seed0 = combinedSeed;
-    // uint seed1 = (combinedSeed >> 8);
-    // uint seed2 = (combinedSeed >> 16);
-    // uint seed3 = (combinedSeed >> 24);
-    float rand_float1 = (float)Next() / (float)0xffffffff;
-    float rand_float2 = (float)Next() / (float)0xffffffff;
-    float rand_float3 = (float)Next() / (float)0xffffffff;
-    float rand_float4 = (float)Next() / (float)0xffffffff;
-
-
-    float3 new_direction = average_direction;
-    float3 normal_vector = float3(0,0,0);
-    float angle = 0;
-    if (perturb) {
-        normal_vector = RandomNormalVector(average_direction, uint3(time_seed, cell_seed, particle_seed));
-        angle = (float)particle_seed / (float)0xffffffff * PI * noise; // Random angle
-        new_direction = RodriguezRot(average_direction, normal_vector, angle);
-    }
+    // normal_vector = normalize(cross(average_direction, random_vector));
+    // normal_vector = float3(1,0,0);
+    float3 other_vector = GetOtherVector(average_direction);
+    float3 normal_vector = cross(other_vector, average_direction);
+    float angle1 = (float)time_particle_seed / (float)0xffffffff * PI * noise; // Random angle
+    float angle2 = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
+    float3 new_direction = RodriguezRot(average_direction, normal_vector, angle1);
+    new_direction = RodriguezRot(new_direction, average_direction, angle2);
 
     // float3 new_direction = float3(1,1,1);
 
@@ -195,8 +187,8 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     cell_pos = CalcCellCoords(particle.position.xyz);
     cell_id = CalcCellId(cell_pos);
     cellIDs[p_id] = cell_id;
-    // Reset cell buffer
-    cellBuffer[cell_id].is_full = 0;
+
+
     
     
     ////////// ------ DEBUG BUFFER ------ //////////
@@ -205,8 +197,22 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     // debugBuffer[id.x].xyz = float3(rand_norm_1, rand_norm_2, rand_norm_3);
     // debugBuffer[id.x].xyz = random_unit_vector;
     // debugBuffer[id.x].xyz = ;
-    debugBuffer[id.x] = float4(average_direction, particle_seed);
-
+    // debugBuffer[id.x] = float4(average_direction, particle_seed);
+    // float3 crossed_rand = cross(random_vector, init_velocity);
+    // debugBuffer[id.x] = float4(average_direction, 0);
+    // debugBuffer2[id.x] = float4(particle.position);
+    // debugBuffer3[id.x] = float4(normal_vector, angle);
+    // float2 startend_debug = float2(startendIDs[id.x]);
+    debugBuffer[id.x] = float4(p_id, particle.position.xyz);
+    debugBuffer2[id.x] = float4(angle1, random_vector);
+    debugBuffer3[id.x] = float4(angle1, normal_vector);
+    // debugBuffer[id.x] = float4(id.x, cellBuffer[id.x].count, startend_debug);
+    // // debugBuffer3[id.x] = float4(p_id, cell_id, cellIDs[id.x], cellIDs[p_id]);
+    // debugBuffer3[id.x] = float4(0, startendIDs[cellIDs[0]].x, startendIDs[cellIDs[0]].y, -1);
+  
+  
+    // Reset cell buffer - temporarily moved after debug buffer
+    // cellBuffer[cell_id].count = 0;
 }
 
 
@@ -228,12 +234,29 @@ void BuildStartEndIDs (uint3 id : SV_DispatchThreadID)
     uint cell_id = cellIDs[p_id];
     uint prev_cell_id = (i != 0) ? cellIDs[particleIDs[i-1]] : cellIDs[particleIDs[(uint)particle_count-1]];
     uint next_cell_id = (i != (uint)particle_count-1) ? cellIDs[particleIDs[i+1]] : cellIDs[particleIDs[0]];
+    
+    // For some reason this breaks for the cell with p_id == 0 ...
+    if (p_id != 0) {
+        if (cell_id != prev_cell_id)
+            startendIDs[cell_id].x = i;
+        if (cell_id != next_cell_id)
+            startendIDs[cell_id].y = i;
 
-    if (cell_id != prev_cell_id)
-        startendIDs[cell_id].x = i;
-    if (cell_id != next_cell_id)
-        startendIDs[cell_id].y = i;
+        // Specify which cells have particles
+        cellBuffer[cell_id].count++;
+    }
+    // ... this is why this else statement is necessary
+    else {
+        startendIDs[cell_id].x = startendIDs[cell_id - 1].y + 1;
+        if (cell_id != next_cell_id)
+            startendIDs[cell_id].y = i;
+    }
+}
 
-    // Specify which cells have particles
-    cellBuffer[cell_id].is_full = 1;
+
+
+[numthreads(128,1,1)]
+void ResetCellBuffer (uint3 id : SV_DispatchThreadID)
+{
+    cellBuffer[id.x].count = 0;
 }

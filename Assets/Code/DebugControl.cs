@@ -4,7 +4,7 @@ using vicsek;
 public class DebugControl : MonoBehaviour {
 
     SimulationControl sim;
-    ComputeBuffer debugBuffer;
+    ComputeBuffer debugBuffer, debugBuffer2, debugBuffer3;
 
     public bool update_toggle = false;
     public bool print_debug_buffer = false;
@@ -12,7 +12,7 @@ public class DebugControl : MonoBehaviour {
     public bool save_debug_to_file = false;
     public bool get_buffers = false;
 
-    Vector4[] debugArray, debugArray2;
+    Vector4[] debugArray, debugArray2, debugArray3;
     [SerializeField]
     Vector4 sums, means;
 
@@ -80,9 +80,13 @@ public class DebugControl : MonoBehaviour {
     void GetBufferData()
     {
         debugArray = new Vector4[sim.particleCount];
+        debugArray2 = new Vector4[sim.particleCount];
+        debugArray3 = new Vector4[sim.particleCount];
         sums = new Vector4(0,0,0,0);
         means = new Vector4(0,0,0,0);
         sim.debugBuffer.GetData(debugArray);
+        sim.debugBuffer2.GetData(debugArray2);
+        sim.debugBuffer3.GetData(debugArray3);
         for (int i = 0; i < sim.particleCount; i++)
             sums += debugArray[i];
         means = sums / (float)sim.particleCount;
@@ -91,8 +95,10 @@ public class DebugControl : MonoBehaviour {
     void WriteDebugBufferToFile() {
         debugArray = new Vector4[sim.particleCount];
         debugArray2 = new Vector4[sim.particleCount];
+        debugArray3 = new Vector4[sim.particleCount];
         sim.debugBuffer.GetData(debugArray);
         sim.debugBuffer2.GetData(debugArray2);
+        sim.debugBuffer3.GetData(debugArray3);
         float[] debugArray_x = new float[sim.particleCount];
         float[] debugArray_y = new float[sim.particleCount];
         float[] debugArray_z = new float[sim.particleCount];
@@ -101,6 +107,10 @@ public class DebugControl : MonoBehaviour {
         float[] debugArray_y_2 = new float[sim.particleCount];
         float[] debugArray_z_2 = new float[sim.particleCount];
         float[] debugArray_w_2 = new float[sim.particleCount];
+        float[] debugArray_x_3 = new float[sim.particleCount];
+        float[] debugArray_y_3 = new float[sim.particleCount];
+        float[] debugArray_z_3 = new float[sim.particleCount];
+        float[] debugArray_w_3 = new float[sim.particleCount];
 
         for (int i = 0; i < sim.particleCount; i++) {
             debugArray_x[i] = debugArray[i].x;
@@ -111,6 +121,10 @@ public class DebugControl : MonoBehaviour {
             debugArray_y_2[i] = debugArray2[i].y;
             debugArray_z_2[i] = debugArray2[i].z;
             debugArray_w_2[i] = debugArray2[i].w;
+            debugArray_x_3[i] = debugArray3[i].x;
+            debugArray_y_3[i] = debugArray3[i].y;
+            debugArray_z_3[i] = debugArray3[i].z;
+            debugArray_w_3[i] = debugArray3[i].w;
         }
 
         SaveFloatsToCSV(debugArray_x, "./debugArray_x.csv");
@@ -122,6 +136,11 @@ public class DebugControl : MonoBehaviour {
         SaveFloatsToCSV(debugArray_y_2, "./debugArray_y_2.csv");
         SaveFloatsToCSV(debugArray_z_2, "./debugArray_z_2.csv");
         SaveFloatsToCSV(debugArray_w_2, "./debugArray_w_2.csv");
+   
+        SaveFloatsToCSV(debugArray_x_3, "./debugArray_x_3.csv");
+        SaveFloatsToCSV(debugArray_y_3, "./debugArray_y_3.csv");
+        SaveFloatsToCSV(debugArray_z_3, "./debugArray_z_3.csv");
+        SaveFloatsToCSV(debugArray_w_3, "./debugArray_w_3.csv");
     }
 
 
@@ -129,6 +148,8 @@ public class DebugControl : MonoBehaviour {
     {
         GetBufferData();
         HeadAndFootPrint<Vector4>(debugArray, 10, 10, "debug_buffer");
+        HeadAndFootPrint<Vector4>(debugArray2, 10, 10, "debug_buffer2");
+        HeadAndFootPrint<Vector4>(debugArray3, 10, 10, "debug_buffer3");
     }
 
 

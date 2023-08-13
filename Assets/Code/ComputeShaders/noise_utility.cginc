@@ -68,3 +68,21 @@ uint MurmurHash3(uint seed) {
     seed ^= seed >> 16;
     return seed;
 }
+
+
+
+float3 GetOtherVector(float3 vec) {
+    float x_dot = abs(dot(vec, float3(1,0,0)));
+    float y_dot = abs(dot(vec, float3(0,1,0)));
+    float z_dot = abs(dot(vec, float3(0,0,1)));
+    float minimum = min(min(x_dot, y_dot), z_dot);
+
+    if (minimum == x_dot)
+        return float3(1, 0, 0);
+    if (minimum == y_dot)
+        return float3(0, 1, 0);
+    if (minimum == z_dot)
+        return float3(0, 0, 1);
+
+    return float3(1, 0, 0);
+}

@@ -36,9 +36,11 @@ public class SimulationControl : MonoBehaviour {
     uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
     
     // Compute shader kernel IDs
+    int particleRearrangeKernel;
+    int startendIDKernel;
     int particleUpdateKernel;
     int optimizedParticleUpdateKernel;
-    int gridUpdateKernel;
+    int cellResetKernel;
 
     // Dispatch group counts
     int group_count;
@@ -68,11 +70,9 @@ public class SimulationControl : MonoBehaviour {
     public ComputeBuffer particleBuffer;
     public ComputeBuffer particleIDBuffer;
     public ComputeBuffer cellIDBuffer;
-    public ComputeBuffer debugBuffer, debugBuffer2;
+    public ComputeBuffer debugBuffer, debugBuffer2, debugBuffer3;
     public ComputeBuffer keyBuffer;
     public ComputeBuffer startendIDBuffer;
-    int particleRearrangeKernel;
-    int startendIDKernel;
     int startend_group_count;
     ComputeBuffer cellBuffer;
     public bool optimized;
@@ -92,6 +92,7 @@ public class SimulationControl : MonoBehaviour {
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
         particleUpdateKernel = ParticleCompute.FindKernel("ParticleUpdate");
         optimizedParticleUpdateKernel = ParticleCompute.FindKernel("OptimizedParticleUpdate");
+        cellResetKernel = ParticleCompute.FindKernel("ResetCellBuffer");
         RecalcBoxRange();
         RecalcRadiusRange();
         InitiateSim();
@@ -99,13 +100,15 @@ public class SimulationControl : MonoBehaviour {
 
         debugBuffer = new ComputeBuffer(particleCount, 4*4);
         debugBuffer2 = new ComputeBuffer(particleCount, 4*4);
+        debugBuffer3 = new ComputeBuffer(particleCount, 4*4);
         Vector4 [] debugArray = new Vector4[particleCount];
-        Vector4 [] debugArray2 = new Vector4[particleCount];
         for (int i = 0; i < 100; i++)
         {
             debugArray[i] = Vector4.zero;
-            debugArray2[i] = Vector4.zero;
         }
+        debugBuffer.SetData(debugArray);
+        debugBuffer2.SetData(debugArray);
+        debugBuffer3.SetData(debugArray);
     }
 
 
@@ -130,14 +133,6 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetFloat("particleSize", particleSize);
         ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
         ParticleCompute.SetInt("frameCounter", frameCounter);
-        
-        elapsed += Time.deltaTime;
-        if (elapsed >= perturbation_frequency) {
-            elapsed = 0.0f;
-            ParticleCompute.SetBool("perturb", true);
-        }
-        else
-            ParticleCompute.SetBool("perturb", true);
 
 
         if (optimized)
@@ -152,10 +147,14 @@ public class SimulationControl : MonoBehaviour {
             // Build start end indices
             ParticleCompute.Dispatch(startendIDKernel, group_count, 1, 1);
 
-
+            // Update particle positions
             ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer", debugBuffer);
             ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer2", debugBuffer2);
+            ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer3", debugBuffer3);
             ParticleCompute.Dispatch(optimizedParticleUpdateKernel, group_count, 1, 1);
+
+            // Reset cell buffer
+            ParticleCompute.Dispatch(cellResetKernel, group_count, 1, 1);
         }
 
         else
@@ -198,6 +197,7 @@ public class SimulationControl : MonoBehaviour {
         InitiateStartEndIDs(startendIDBuffer, particleIDBuffer, cellIDBuffer);
         InitiateParticleUpdate(particleBuffer);
         InitiateOptimizedParticleUpdate(particleBuffer, cellIDBuffer, startendIDBuffer, particleIDBuffer);
+        InitiateCellReset(cellBuffer);
         InitiateArgs();
 
 
@@ -351,6 +351,12 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetTexture(optimizedParticleUpdateKernel, "NoiseTexture", NoiseTexture);
     }
 
+
+    void InitiateCellReset(ComputeBuffer cellBuffer)
+    {
+        ParticleCompute.SetBuffer(cellResetKernel, "cellBuffer", cellBuffer);
+    }
+
     void InitiateArgs()
     {
         // Indirect args
@@ -407,5 +413,9 @@ public class SimulationControl : MonoBehaviour {
         if (debugBuffer2 != null)
             debugBuffer2.Release();
         debugBuffer2 = null;
+        
+        if (debugBuffer3 != null)
+            debugBuffer3.Release();
+        debugBuffer3 = null;
     }
 }
