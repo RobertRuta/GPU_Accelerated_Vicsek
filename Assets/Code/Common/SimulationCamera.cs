@@ -16,7 +16,7 @@ public class SimulationCamera : MonoBehaviour
     [SerializeField]
     float distance;
     float dx, dy;
-    VicsekController sim;
+    SimulationControl sim;
     float boxWidth;
     Vector3 initPosition;
 
@@ -26,7 +26,7 @@ public class SimulationCamera : MonoBehaviour
         x = angles.y;
         y = angles.x;
 
-        sim = GameObject.Find("sim").GetComponent<VicsekController>();
+        sim = GameObject.Find("sim").GetComponent<SimulationControl>();
         boxWidth = sim.box_width;
 
         target = Vector3.one * boxWidth/2;
