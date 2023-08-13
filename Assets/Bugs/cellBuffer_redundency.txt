@@ -1,0 +1,31 @@
+13/08/2023 - 15:59
+    The way the cell buffer has been used thus far, is to mark which cells are empty and which are filled 
+    with at least one particle. The problem is that the process of specifying which cells are filled and unfilled 
+    was done incorrectly. The particle update code had a cellbuffer reset line at the end of it, which was leading 
+    to the overwriting of the cell buffer as soon as the first particle of each cell was handled. Because all 
+    this was being done in parallel, I assume this still worked mostly fine, but im not sure. Either way, this was 
+    a redundant piece of code, because one can simply check whether the start_id and end_id are valid; that is:
+        1. start_id < end_id
+        2. start_id != end_id
+        3. start_id[i] = end_id[i-1] + 1
+        4. end_id[i] = start_id[i+1] - 1
+
+13/08/2023 - 16:09 *1
+    Exactly one value in the start_end_id buffer has a start value of ParticleCount, and a valid end value. 
+    It so happens that this value always occurs for particleID == 0. Why is the cell that contains 
+    particle ID 0 cursed?
+
+
+13/08/2023 - 17:19
+    Back to the original issue: when there are no particles in a cell, the startend id buffer 
+    does not have valid values. Most likely, it simply has the same values it had last frame. 
+    This case should be handled.
+
+
+13/08/2023 - 17:19 *1
+    Back to issue *1, I have no clue why this happens, but I have made a work around 
+    that simply applies the rule start_id[i] = end_id[i-1] + 1 when p_id==0.
+    This is a horrible "solution" to the problem, and so this must be revisited.
+
+
+
