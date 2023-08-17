@@ -363,7 +363,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 895109123}
-  - component: {fileID: 895109124}
   - component: {fileID: 895109125}
   - component: {fileID: 895109126}
   - component: {fileID: 895109127}
@@ -393,36 +392,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &895109124
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 895109121}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a8f1c8aef0844a14daafd442a5a30da3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  particleCount: 1000000
-  radius: 1.96
-  radius_range: {x: 0, y: 0}
-  speed: 1
-  noise: 1
-  NoiseTexture: {fileID: 2800000, guid: 76af423c61bd1c849a885fd5ea3ca665, type: 3}
-  particleSize: 0.81
-  debug_toggle: 0
-  particleMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  particleMaterial: {fileID: 2100000, guid: c203a09b5125471448363d6d4116495a, type: 2}
-  subMeshIndex: 0
-  ParticleCompute: {fileID: 7200000, guid: 81c4e4eac73cefa4d84822e9f17778bf, type: 3}
-  sortShader: {fileID: 7200000, guid: 4aca9ca9732bed94092cd70359a4508f, type: 3}
-  box_width: 100
-  box_range: {x: 0, y: 0}
-  box: {x: 0, y: 0, z: 0}
-  grid_dims: {x: 0, y: 0, z: 0}
-  cellCount: 0
 --- !u!114 &895109125
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -435,11 +404,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f4a570d99c694b4a8bd5846219cccbd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleCount: 100000
+  particleCount: 2000
   radius: 5
   speed: 5
   noise: 1
-  particleSize: 0.05
+  particleSize: 0.5
   perturbation_frequency: 0.2
   debug_toggle: 0
   radius_range: {x: 0, y: 0}
