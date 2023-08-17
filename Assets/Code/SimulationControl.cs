@@ -127,7 +127,7 @@ public class SimulationControl : MonoBehaviour {
         
         // Update compute shader variables
         ParticleCompute.SetFloat("speed", speed);
-        ParticleCompute.SetFloat("dt", Time.deltaTime);
+        ParticleCompute.SetFloat("dt", 1f/60f);
         ParticleCompute.SetFloat("time", Time.time);
         ParticleCompute.SetFloat("noise", noise);
         ParticleCompute.SetFloat("particleSize", particleSize);
