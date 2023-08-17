@@ -141,10 +141,13 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     // normal_vector = float3(1,0,0);
     float3 other_vector = GetOtherVector(average_direction);
     float3 normal_vector = cross(other_vector, average_direction);
-    float angle1 = (float)time_particle_seed / (float)0xffffffff * PI * noise; // Random angle
-    float angle2 = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
-    float3 new_direction = RodriguezRot(average_direction, normal_vector, angle1);
-    new_direction = RodriguezRot(new_direction, average_direction, angle2);
+    float phi = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
+    float rand_z = 1 - (float)time_particle_seed / (float)0xffffffff * 2 * noise; // Uniform random from 1-noise to 1
+    float rho = sqrt(1 - rand_z*rand_z);
+    float theta = atan2(rand_z, rho);
+
+    float3 new_direction = RodriguezRot(average_direction, normal_vector, theta);
+    new_direction = RodriguezRot(new_direction, average_direction, phi);
 
     // float3 new_direction = float3(1,1,1);
 
@@ -204,8 +207,8 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     // debugBuffer3[id.x] = float4(normal_vector, angle);
     // float2 startend_debug = float2(startendIDs[id.x]);
     debugBuffer[id.x] = float4(p_id, particle.position.xyz);
-    debugBuffer2[id.x] = float4(angle1, random_vector);
-    debugBuffer3[id.x] = float4(angle1, normal_vector);
+    // debugBuffer2[id.x] = float4(angle1, random_vector);
+    // debugBuffer3[id.x] = float4(angle1, normal_vector);
     // debugBuffer[id.x] = float4(id.x, cellBuffer[id.x].count, startend_debug);
     // // debugBuffer3[id.x] = float4(p_id, cell_id, cellIDs[id.x], cellIDs[p_id]);
     // debugBuffer3[id.x] = float4(0, startendIDs[cellIDs[0]].x, startendIDs[cellIDs[0]].y, -1);
