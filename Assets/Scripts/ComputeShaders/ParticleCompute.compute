@@ -43,7 +43,11 @@ SamplerState samplerNoiseTexture;
 [numthreads(128,1,1)]
 void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 {
-    Particle particle = particleBuffer[id.x];
+    uint p_id = id.x;
+    Particle particle = particleBuffer[p_id];
+
+
+    ////////// ------ SUM NEIGHBOUR VELOCITIES ------ ////////// 
 
     float3 summed_velocity = float3(0,0,0);
     // Loop through every other particle in the simulation
@@ -57,15 +61,43 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
             summed_velocity += neighbour.velocity.xyz;
         }
     }
-    float3 new_velocity = normalize(summed_velocity) * speed;
+    float3 average_direction = normalize(summed_velocity);
 
-    // particle.velocity.xyz = float3(0,1,0);
-    particle.velocity.xyz = new_velocity;
-    particle.position.xyz += particle.velocity.xyz*dt;
-    particle.position.w = particleSize;
 
-    BoundToBox(particle.position.xyz);
-    particleBuffer[id.x] = particle;
+    ////////// ------ RANDOM NUMBER GENERATION ------ //////////
+
+    uint time_seed = (uint)(time*1000);
+    uint time_seed_2 = MurmurHash3(time_seed);
+    uint particle_seed = MurmurHash3(p_id+1);
+    uint particle_seed2 = MurmurHash3(particle_seed);
+    uint time_particle_seed = MurmurHash3(particle_seed + time_seed_2);
+    uint time_particle_seed2 = MurmurHash3(particle_seed2 + time_seed);
+    
+
+    ////////// ------ VELOCITY PERTURBATION ------ //////////
+
+    float3 random_vector = hash(uint3(time_seed_2, particle_seed, time_particle_seed));
+    float3 other_vector = GetOtherVector(average_direction);
+    float3 normal_vector = cross(other_vector, average_direction);
+    float phi = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
+    float theta = ((float)time_particle_seed / (float)0xffffffff * 2 - 1) * PI * noise; // Random angle
+    
+    float3 new_direction = RodriguezRot(average_direction, normal_vector, theta);
+    new_direction = RodriguezRot(new_direction, average_direction, phi);
+    new_direction = new_direction;
+
+    
+    ////////// ------ UPDATE PARTICLE POSITION AND VELOCITY ------ //////////
+    
+    float3 new_velocity = new_direction * speed;
+    float3 new_position = particle.position.xyz + new_velocity*dt;
+
+    // Enforce Periodic Boundaries
+    BoundToBox(new_position);
+
+    // Update particle in buffer
+    particleBuffer[p_id].position = float4(new_position, particleSize);
+    particleBuffer[p_id].velocity = float4(new_velocity, particleSize);
 }
 
 
@@ -73,7 +105,9 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 [numthreads(128,1,1)]
 void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 {
+    // getting particle index
     uint p_id = particleIDs[id.x];
+
     Particle particle = particleBuffer[p_id];
     int3 cell_pos = CalcCellCoords(particle.position.xyz);
     uint cell_id = CalcCellId(cell_pos);
@@ -81,9 +115,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     ////////// ------ SUM NEIGHBOUR VELOCITIES ------ ////////// 
     
-    float3 init_velocity = particle.velocity.xyz;
     float3 summed_velocity = particle.velocity.xyz;
-    int neighbour_counter = 0;
     // Loop through neighbouring cells
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
@@ -110,22 +142,21 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
                             uint neighbour_id = particleIDs[i];
                             Particle neighbour = particleBuffer[neighbour_id];
                             float distance = length(neighbour.position.xyz - particle.position.xyz);
-                            if (distance < radius) {
+                            if (distance < radius)
                                 summed_velocity += neighbour.velocity.xyz;
-                                neighbour_counter++;
-                            }
                         }
                     }
                 }
             }
         }
     }
+
     // Average neighbour direction is the normalized sum of neighbour velocities
     float3 average_direction = normalize(summed_velocity);
-    float3 average_velocity = average_direction * speed;
 
     
     ////////// ------ RANDOM NUMBER GENERATION ------ //////////
+
     uint time_seed = (uint)(time*1000);
     uint time_seed_2 = MurmurHash3(time_seed);
     uint particle_seed = MurmurHash3(p_id+1);
@@ -134,56 +165,30 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     uint time_particle_seed2 = MurmurHash3(particle_seed2 + time_seed);
     uint cell_seed = rotl(time_seed, cell_id);
     
-    float3 random_vector = hash(uint3(time_seed_2, particle_seed, cell_seed));
-    // random_vector = normalize((random_vector - 0.5) * 2);
 
-    // normal_vector = normalize(cross(average_direction, random_vector));
-    // normal_vector = float3(1,0,0);
+    ////////// ------ VELOCITY PERTURBATION ------ //////////
+
+    float3 random_vector = hash(uint3(time_seed_2, particle_seed, cell_seed));
     float3 other_vector = GetOtherVector(average_direction);
     float3 normal_vector = cross(other_vector, average_direction);
     float phi = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
-    // float rand_z = 1 - (float)time_particle_seed / (float)0xffffffff * 2 * noise; // Uniform random from 1-noise to 1
-    // float rho = sqrt(1 - rand_z*rand_z);
-    // float theta = atan2(rho, rand_z);
     float theta = ((float)time_particle_seed / (float)0xffffffff * 2 - 1) * PI * noise; // Random angle
 
     float3 new_direction = RodriguezRot(average_direction, normal_vector, theta);
     new_direction = RodriguezRot(new_direction, average_direction, phi);
 
-    // float3 new_direction = float3(1,1,1);
-
-
-
-    // state = id.x ^ time_seed_1;
-    // if (state == 0) state = time_seed_2;
-
-
-    // float3 random_vector = hash(uint3(state, id.x, frame_counter)) - 0.5;
-    // float3 u_rand = hash(uint3(p_id, id.x^time_seed_2, frame_counter));
-    // float3 u_rand2 = hash(uint3(state, id.x, frame_counter));
-    // float2 n_rand = box_muller_normal_random(u_rand.x, u_rand2.x);
-    // float2 n_rand2 = box_muller_normal_random(u_rand.y, u_rand2.y);
-
-    
-    // box_muller_normal_random();
-
-    // float3 random_unit_vector = normalize(float3(n_rand.x, n_rand.y, n_rand2.x));
-    // float3 random_unit_vector = normalize(random_vector);
-    // float3 random_unit_vector = random_vector;
 
     ////////// ------ UPDATE PARTICLE POSITION AND VELOCITY ------ //////////
-    float3 new_velocity = new_direction * speed;
-    // float3 new_velocity = normalize(summed_velocity + noise*neighbour_counter*random_unit_vector*speed) * speed;
-    // float3 new_velocity = normalize(summed_velocity) + random_unit_vector * speed;
 
-    particle.velocity.xyz = new_velocity;
-    particle.position.xyz += particle.velocity.xyz*dt;    
+    float3 new_velocity = new_direction * speed;
+    float3 new_position = particle.position.xyz + new_velocity*dt;
+
     // Enforce Periodic Boundaries
-    BoundToBox(particle.position.xyz);
+    BoundToBox(new_position);
+
     // Update particle in buffer
-    particleBuffer[p_id] = particle;
-    // Update particle size;
-    particleBuffer[p_id].position.w = particleSize;
+    particleBuffer[p_id].position = float4(new_position, particleSize);
+    particleBuffer[p_id].velocity = float4(new_velocity, particleSize);
 
 
     ////////// ------ UPDATE GRID ------ //////////
@@ -192,32 +197,12 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     cell_id = CalcCellId(cell_pos);
     cellIDs[p_id] = cell_id;
 
-
-    
     
     ////////// ------ DEBUG BUFFER ------ //////////
 
-    // debugBuffer[id.x].xyzw = float4(rand_float_1, rand_float_2, rand_float_3, rand_float_4);
-    // debugBuffer[id.x].xyz = float3(rand_norm_1, rand_norm_2, rand_norm_3);
-    // debugBuffer[id.x].xyz = random_unit_vector;
-    // debugBuffer[id.x].xyz = ;
-    // debugBuffer[id.x] = float4(average_direction, particle_seed);
-    // float3 crossed_rand = cross(random_vector, init_velocity);
-    // debugBuffer[id.x] = float4(average_direction, 0);
-    // debugBuffer3[id.x] = float4(normal_vector, angle);
-    // float2 startend_debug = float2(startendIDs[id.x]);
-    // debugBuffer[id.x] = float4(rand_z, rho, phi, theta);
+    debugBuffer[id.x] = float4(1,1,1,1);
     debugBuffer2[id.x] = float4(average_direction, noise);
     debugBuffer3[id.x] = float4(new_direction, noise);
-    // debugBuffer2[id.x] = float4(angle1, random_vector);
-    // debugBuffer3[id.x] = float4(angle1, normal_vector);
-    // debugBuffer[id.x] = float4(id.x, cellBuffer[id.x].count, startend_debug);
-    // // debugBuffer3[id.x] = float4(p_id, cell_id, cellIDs[id.x], cellIDs[p_id]);
-    // debugBuffer3[id.x] = float4(0, startendIDs[cellIDs[0]].x, startendIDs[cellIDs[0]].y, -1);
-  
-  
-    // Reset cell buffer - temporarily moved after debug buffer
-    // cellBuffer[cell_id].count = 0;
 }
 
 
