@@ -23,11 +23,11 @@
             sampler2D _MainTex;
             float _ColorIntensity;
 
-            struct Particle
-            {
-                float4 position;
-                float4 velocity;
-            };
+            // struct Particle
+            // {
+            //     float4 position;
+            //     float4 velocity;
+            // };
 
         #if SHADER_TARGET >= 45
             StructuredBuffer<float4> positionBuffer;
@@ -62,9 +62,9 @@
                 float3 diffuse = (ndotl * _LightColor0.rgb);
                 // float3 velocity_color = normalize(particleBuffer[instanceID].velocity.xyz)*2 - float3(1, 1, 1);
                 // float3 velocity_color = normalize(velocityBuffer[instanceID].xyz)*2 - float3(1, 1, 1);
-                // float3 color = v.color;
+                float3 color = v.color;
                 // float3 color = normalize(velocity_color) * _ColorIntensity;
-                float3 color = float3(1,1,1);
+                // float3 color = float3(1,1,1);
 
                 v2f o;
                 o.pos = mul(UNITY_MATRIX_VP, float4(worldPosition, 1.0f));

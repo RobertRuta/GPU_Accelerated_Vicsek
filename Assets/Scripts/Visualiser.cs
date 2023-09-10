@@ -35,7 +35,7 @@ public class Visualiser : MonoBehaviour
         argsBuffer.SetData(args);
 
         particleMaterial.SetBuffer("positionBuffer", sim.positionBuffer.buffer);
-        particleMaterial.SetBuffer("velocityBuffer", sim.velocityBuffer.buffer);
+        // particleMaterial.SetBuffer("velocityBuffer", sim.velocityBuffer.buffer);
 
         Vector4[] positionArray = new Vector4[sim.particleCount];
         sim.positionBuffer.buffer.GetData(positionArray);   

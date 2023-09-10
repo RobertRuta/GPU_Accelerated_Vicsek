@@ -349,11 +349,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 772d0d02b3bb57b4084e147788dc4e63, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  target: {x: 0, y: 0, z: 0}
   xSpeed: 1
   ySpeed: 2
   zoomSpeed: 50
   inertialDamping: 0.05
+  x: 0
+  y: 0
   distance: 0
+  dx: 0
+  dy: 0
+  sim: {fileID: 0}
+  boxWidth: 0
+  initPosition: {x: 0, y: 0, z: 0}
 --- !u!1 &895109121
 GameObject:
   m_ObjectHideFlags: 0
@@ -364,8 +372,7 @@ GameObject:
   m_Component:
   - component: {fileID: 895109123}
   - component: {fileID: 895109125}
-  - component: {fileID: 895109126}
-  - component: {fileID: 895109127}
+  - component: {fileID: 895109128}
   m_Layer: 0
   m_Name: sim
   m_TagString: Untagged
@@ -405,28 +412,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   particleCount: 2000
+  boxWidth: 100
   radius: 5
   speed: 5
   noise: 1
-  particleSize: 0.5
-  perturbation_frequency: 0.2
-  debug_toggle: 0
   radius_range: {x: 0, y: 0}
   particleDensity: 0
   particleCellDensity: 0
   ParticleCompute: {fileID: 7200000, guid: d0fe8b7542cd3674c910fcb5b21c1f6a, type: 3}
-  sortShader: {fileID: 7200000, guid: 4aca9ca9732bed94092cd70359a4508f, type: 3}
-  NoiseTexture: {fileID: 2800000, guid: 76af423c61bd1c849a885fd5ea3ca665, type: 3}
+  SortShader: {fileID: 0}
   particleMaterial: {fileID: 2100000, guid: c203a09b5125471448363d6d4116495a, type: 2}
   particleMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
   subMeshIndex: 0
-  box_width: 100
   box_range: {x: 0, y: 0}
   box: {x: 0, y: 0, z: 0}
   grid_dims: {x: 0, y: 0, z: 0}
   cellCount: 0
   optimized: 1
---- !u!114 &895109126
+--- !u!114 &895109128
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -435,28 +438,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 895109121}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a75e955fcdda7794884d66ff3b84daeb, type: 3}
+  m_Script: {fileID: 11500000, guid: fb14b7a00b9c79f49b9c96c2f03d28c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  update_toggle: 0
-  print_debug_buffer: 0
-  print_buffers: 0
-  save_debug_to_file: 0
-  get_buffers: 0
-  sums: {x: 0, y: 0, z: 0, w: 0}
-  means: {x: 0, y: 0, z: 0, w: 0}
---- !u!114 &895109127
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 895109121}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 10be9078949895a47ba2f8bda52bc3cd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  particleMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  subMeshIndex: 0
+  particleMaterial: {fileID: 2100000, guid: c203a09b5125471448363d6d4116495a, type: 2}
 --- !u!1 &1299154866
 GameObject:
   m_ObjectHideFlags: 0
