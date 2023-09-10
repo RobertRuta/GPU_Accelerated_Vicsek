@@ -11,8 +11,6 @@ public class SimulationControl : MonoBehaviour {
     public float speed = 5;
     public float noise = 1.0f;
     public float particleSize = 0.05f;
-    public float perturbation_frequency = 0.2f;
-    float elapsed = 0;
     public bool debug_toggle = false;
     [SerializeField]
     public Vector2 radius_range;
@@ -44,10 +42,6 @@ public class SimulationControl : MonoBehaviour {
 
     // Dispatch group counts
     int group_count;
-    
-    
-    // Simulation struct
-
 
     // Simulation space and grid variables
     public float box_width = 100f;
@@ -65,7 +59,6 @@ public class SimulationControl : MonoBehaviour {
     // Third-party Sorter
     Sorter sorter;
     
-    
     // Compute buffers
     public ComputeBuffer particleBuffer;
     public ComputeBuffer particleIDBuffer;
@@ -73,18 +66,11 @@ public class SimulationControl : MonoBehaviour {
     public ComputeBuffer debugBuffer, debugBuffer2, debugBuffer3;
     public ComputeBuffer keyBuffer;
     public ComputeBuffer startendIDBuffer;
-    int startend_group_count;
     ComputeBuffer cellBuffer;
     public bool optimized;
 
     const uint MAX_BUFFER_BYTES = 2147483648;
     int max_cell_count;
-
-    DebugControl debugger;
-    void Awake()
-    {
-        debugger = GetComponent<DebugControl>();
-    }
 
     void Start() {
         max_cell_count = (int)(MAX_BUFFER_BYTES / 8);
@@ -95,35 +81,19 @@ public class SimulationControl : MonoBehaviour {
         cellResetKernel = ParticleCompute.FindKernel("ResetCellBuffer");
         RecalcBoxRange();
         RecalcRadiusRange();
-        InitiateSim();
-
-
-        debugBuffer = new ComputeBuffer(particleCount, 4*4);
-        debugBuffer2 = new ComputeBuffer(particleCount, 4*4);
-        debugBuffer3 = new ComputeBuffer(particleCount, 4*4);
-        Vector4 [] debugArray = new Vector4[particleCount];
-        for (int i = 0; i < 100; i++)
-        {
-            debugArray[i] = Vector4.zero;
-        }
-        debugBuffer.SetData(debugArray);
-        debugBuffer2.SetData(debugArray);
-        debugBuffer3.SetData(debugArray);
+        InitSim();
     }
-
-
 
     void Update() {
         // Update starting position buffer
         if (cachedParticleCount != particleCount || cachedSubMeshIndex != subMeshIndex || cachedBoxWidth != box_width || cachedRadius != radius)
-            InitiateSim();
+            InitSim();
 
         // Pad input
         if (Input.GetKey(KeyCode.RightArrow))
             particleCount += 1000;
         if (Input.GetKey(KeyCode.LeftArrow))
             particleCount -= 1000;
-
         
         // Update compute shader variables
         ParticleCompute.SetFloat("speed", speed);
@@ -133,7 +103,6 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetFloat("particleSize", particleSize);
         ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
         ParticleCompute.SetInt("frameCounter", frameCounter);
-
 
         if (optimized)
         {
@@ -162,10 +131,10 @@ public class SimulationControl : MonoBehaviour {
             ParticleCompute.Dispatch(particleUpdateKernel, group_count, 1, 1);
         }
 
-
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
         frameCounter++;
     }
+
 
     // Helper functions
 
@@ -185,27 +154,28 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
-    void InitiateSim()
+    void InitSim()
     {
         group_count = Mathf.CeilToInt((float)particleCount / 128);
 
 
-        InitiateSimParams();
-        InitiateBuffers();
-        InitiateSorter();
-        InitiateRearrange(keyBuffer, particleIDBuffer);
-        InitiateStartEndIDs(startendIDBuffer, particleIDBuffer, cellIDBuffer);
-        InitiateParticleUpdate(particleBuffer);
-        InitiateOptimizedParticleUpdate(particleBuffer, cellIDBuffer, startendIDBuffer, particleIDBuffer);
-        InitiateCellReset(cellBuffer);
-        InitiateArgs();
+        InitSimParams();
+        InitBuffers();
+        InitSorter();
+        InitRearrange(keyBuffer, particleIDBuffer);
+        InitStartEndIDs(startendIDBuffer, particleIDBuffer, cellIDBuffer);
+        InitParticleUpdate(particleBuffer);
+        InitOptimizedParticleUpdate(particleBuffer, cellIDBuffer, startendIDBuffer, particleIDBuffer);
+        InitCellReset(cellBuffer);
+        InitArgs();
 
 
         particleMaterial.SetBuffer("particleBuffer", particleBuffer);
     }
 
-    void InitiateBuffers()
+    void InitBuffers()
     {
+        // Cleaning up existing buffers
         if (particleBuffer != null)
             particleBuffer.Release();
         if (cellIDBuffer != null)
@@ -218,6 +188,17 @@ public class SimulationControl : MonoBehaviour {
             startendIDBuffer.Release();
         if (cellBuffer != null)
             cellBuffer.Release();
+        if (debugBuffer != null)
+            debugBuffer.Release();
+        if (debugBuffer2 != null)
+            debugBuffer2.Release();
+        if (debugBuffer3 != null)
+            debugBuffer3.Release();
+
+        // Recreating buffers
+        debugBuffer = new ComputeBuffer(particleCount, 4*4);
+        debugBuffer2 = new ComputeBuffer(particleCount, 4*4);
+        debugBuffer3 = new ComputeBuffer(particleCount, 4*4);
         cellBuffer = new ComputeBuffer(cellCount, Marshal.SizeOf(typeof(Cell)));
         startendIDBuffer = new ComputeBuffer(cellCount, 2*Marshal.SizeOf(typeof(uint)));
         particleIDBuffer = new ComputeBuffer(particleCount, Marshal.SizeOf(typeof(uint)));
@@ -228,6 +209,7 @@ public class SimulationControl : MonoBehaviour {
         // Initialise buffers of particleCount elements
         uint[] initArray = new uint[particleCount];
         Particle[] particleArray = new Particle[particleCount];
+        Vector4 [] debugArray = new Vector4[particleCount];
         for (uint i = 0; i<particleCount; i++)
         {
             // Key buffer initialisation array
@@ -237,6 +219,9 @@ public class SimulationControl : MonoBehaviour {
             particleArray[i].position = new Vector4(Random.Range(0f, box.x), Random.Range(0f, box.y), Random.Range(0f, box.z), particleSize);
             Vector3 vel = Random.onUnitSphere;
             particleArray[i].velocity = new Vector4(vel.x, vel.y, vel.z, particleSize);
+            
+            // Debug array
+            debugArray[i] = Vector4.zero;
         }
 
         // Initalise startendID buffer
@@ -248,25 +233,28 @@ public class SimulationControl : MonoBehaviour {
             cellArray[i].is_full = 0;
         }
 
-        // Initalise data in buffers
+        // Initalising buffer values
         keyBuffer.SetData(initArray);
         particleIDBuffer.SetData(initArray);
         cellIDBuffer.SetData(initArray);
         startendIDBuffer.SetData(startendIDArray);
         cellBuffer.SetData(cellArray);
         particleBuffer.SetData(particleArray);
+        debugBuffer.SetData(debugArray);
+        debugBuffer2.SetData(debugArray);
+        debugBuffer3.SetData(debugArray);
 
     }
 
-    // Initiate Emmet's sorter
-    void InitiateSorter()
+    // Init Emmet's sorter
+    void InitSorter()
     {
         if (sorter != null)
             sorter.Dispose();
         sorter = new Sorter(sortShader);
     }
     
-    void InitiateSimParams()
+    void InitSimParams()
     {
         // Set particle count
         if (particleCount != cachedParticleCount)
@@ -314,7 +302,7 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
-    void InitiateRearrange(ComputeBuffer particleIDBuffer, ComputeBuffer keysBuffer)
+    void InitRearrange(ComputeBuffer particleIDBuffer, ComputeBuffer keysBuffer)
     {
         particleRearrangeKernel = ParticleCompute.FindKernel("RearrangeParticleIDs");
         ParticleCompute.SetBuffer(particleRearrangeKernel, "particleIDs", particleIDBuffer);
@@ -322,9 +310,8 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
-    void InitiateStartEndIDs(ComputeBuffer startendIDBuffer, ComputeBuffer particleIDBuffer, ComputeBuffer cellIDBuffer)
+    void InitStartEndIDs(ComputeBuffer startendIDBuffer, ComputeBuffer particleIDBuffer, ComputeBuffer cellIDBuffer)
     {
-
         startendIDKernel = ParticleCompute.FindKernel("BuildStartEndIDs");
         ParticleCompute.SetBuffer(startendIDKernel, "startendIDs", startendIDBuffer);
         ParticleCompute.SetBuffer(startendIDKernel, "particleIDs", particleIDBuffer);
@@ -333,14 +320,14 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
-    void InitiateParticleUpdate(ComputeBuffer particleBuffer)
+    void InitParticleUpdate(ComputeBuffer particleBuffer)
     {
         ParticleCompute.SetFloat("radius", radius);
         ParticleCompute.SetBuffer(particleUpdateKernel, "particleBuffer", particleBuffer);
     }
 
 
-    void InitiateOptimizedParticleUpdate(ComputeBuffer particleBuffer, ComputeBuffer cellIDBuffer, ComputeBuffer startendIDBuffer, ComputeBuffer particleIDBuffer)
+    void InitOptimizedParticleUpdate(ComputeBuffer particleBuffer, ComputeBuffer cellIDBuffer, ComputeBuffer startendIDBuffer, ComputeBuffer particleIDBuffer)
     {
         ParticleCompute.SetFloat("radius", radius);
         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "particleBuffer", particleBuffer);
@@ -352,12 +339,12 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
-    void InitiateCellReset(ComputeBuffer cellBuffer)
+    void InitCellReset(ComputeBuffer cellBuffer)
     {
         ParticleCompute.SetBuffer(cellResetKernel, "cellBuffer", cellBuffer);
     }
 
-    void InitiateArgs()
+    void InitArgs()
     {
         // Indirect args
         if (particleMesh != null) {
@@ -374,6 +361,7 @@ public class SimulationControl : MonoBehaviour {
         argsBuffer.SetData(args);
     }
 
+    // Is called on simulation quit - when Sim gameobject is inactive
     void OnDisable() {
         if (particleBuffer != null)
             particleBuffer.Release();

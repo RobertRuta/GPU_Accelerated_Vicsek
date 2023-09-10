@@ -6,7 +6,6 @@
 #pragma kernel BuildStartEndIDs
 #pragma kernel ResetCellBuffer
 
-
 #include "noise_utility.cginc"
 #include "xorshiro.cginc"
 #include "grid_utility.cginc"
@@ -34,10 +33,6 @@ RWStructuredBuffer<uint2> startendIDs;
 RWStructuredBuffer<float4> debugBuffer;
 RWStructuredBuffer<float4> debugBuffer2;
 RWStructuredBuffer<float4> debugBuffer3;
-
-Texture2D NoiseTexture;
-SamplerState samplerNoiseTexture;
-
 
 
 [numthreads(128,1,1)]
