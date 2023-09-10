@@ -30,7 +30,8 @@
             };
 
         #if SHADER_TARGET >= 45
-            StructuredBuffer<Particle> particleBuffer;
+            StructuredBuffer<float4> positionBuffer;
+            StructuredBuffer<float4> velocityBuffer;
         #endif
 
             struct v2f
@@ -46,7 +47,8 @@
             v2f vert (appdata_full v, uint instanceID : SV_InstanceID)
             {
             #if SHADER_TARGET >= 45
-                float4 data = particleBuffer[instanceID].position;
+                // float4 data = position[instanceID].position;
+                float4 data = positionBuffer[instanceID];
             #else
                 float4 data = 0;
             #endif
@@ -58,9 +60,11 @@
                 float3 ndotl = saturate(dot(worldNormal, _WorldSpaceLightPos0.xyz));
                 float3 ambient = ShadeSH9(float4(worldNormal, 1.0f));
                 float3 diffuse = (ndotl * _LightColor0.rgb);
-                float3 velocity_color = normalize(particleBuffer[instanceID].velocity.xyz)*2 - float3(1, 1, 1);
+                // float3 velocity_color = normalize(particleBuffer[instanceID].velocity.xyz)*2 - float3(1, 1, 1);
+                // float3 velocity_color = normalize(velocityBuffer[instanceID].xyz)*2 - float3(1, 1, 1);
                 // float3 color = v.color;
-                float3 color = normalize(velocity_color) * _ColorIntensity;
+                // float3 color = normalize(velocity_color) * _ColorIntensity;
+                float3 color = float3(1,1,1);
 
                 v2f o;
                 o.pos = mul(UNITY_MATRIX_VP, float4(worldPosition, 1.0f));
