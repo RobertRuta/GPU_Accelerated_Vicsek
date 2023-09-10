@@ -28,13 +28,11 @@ namespace GPTCompute
             for (int i = 0; i < length; i++)
                 initArray[i] = default(T);
 
-            try
-            {
+            try {
                 buffer = new ComputeBuffer(length, Stride);
                 buffer.SetData(initArray);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 Debug.LogError($"Failed to create ComputeBuffer: {ex.Message}");
                 buffer = null;
             }
@@ -46,31 +44,47 @@ namespace GPTCompute
             Length = length;
             Stride = Marshal.SizeOf(typeof(T));
 
-            try
-            {
+            try {
                 buffer = new ComputeBuffer(length, Stride);
                 buffer.SetData(initArray);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 Debug.LogError($"Failed to create ComputeBuffer: {ex.Message}");
                 buffer = null;
             }
         }
 
-        public void Dispose()
+        public Buffer(int length, string name, T[] initArray, ComputeBufferType bufferType)
         {
-            if (buffer != null)
-            {
+            Name = name;
+            Length = length;
+            Stride = Marshal.SizeOf(typeof(T));
+
+            try {
+                buffer = new ComputeBuffer(length, Stride, bufferType);
+                buffer.SetData(initArray);
+            }
+            catch (Exception ex) {
+                Debug.LogError($"Failed to create ComputeBuffer: {ex.Message}");
+                buffer = null;
+            }
+        }
+
+        public void Dispose() {
+            if (buffer != null) {
                 buffer.Release();
                 buffer = null;
             }
         }
 
-        public void Reset()
-        {
+        public void Reset() {
             Dispose();
             buffer = new ComputeBuffer(Length, Stride);
+        }
+
+        public void Reset(int length) {
+            Dispose();
+            buffer = new ComputeBuffer(length, Stride);
         }
     }
 

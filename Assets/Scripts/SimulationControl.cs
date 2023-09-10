@@ -2,6 +2,7 @@ using UnityEngine;
 using BufferSorter;
 using vicsek;
 using GPTCompute;
+using System.Collections.Generic;
 
 public class SimulationControl : MonoBehaviour {
 
@@ -35,15 +36,16 @@ public class SimulationControl : MonoBehaviour {
     
     // Compute buffers
     public Buffer<Vector4> positionBuffer, velocityBuffer;
+    public Buffer<Particle> particleBuffer;
     Buffer<Vector4> debug1Buffer, debug2Buffer, debug3Buffer;
-    Buffer<int> particleIDBuffer, cellIDBuffer, keysBuffer;
+    Buffer<uint> particleIDBuffer, cellIDBuffer, keysBuffer;
     Buffer<Vector2Int> startendBuffer;
-    Buffer<Cell> cells;
+    Buffer<Cell> cellBuffer;
     
     // Compute shader kernels
     Kernel particleRearrange;
-    Kernel startendID;
-    Kernel particleUpdateKernel;
+    Kernel buildStartEndIDs;
+    Kernel particleUpdate;
     Kernel optimizedParticleUpdate;
     Kernel cellReset;
 
@@ -71,27 +73,101 @@ public class SimulationControl : MonoBehaviour {
 
     Visualiser visualiser;
 
-    void Start()
-    {
+    void Start() {
 
-        Vector4[] positionArray = new Vector4[particleCount];
-        Vector4[] velocityArray = new Vector4[particleCount];
-        for (int i = 0; i < particleCount; i++) {
-            positionArray[i] = new Vector4(Random.Range(0, boxWidth), Random.Range(0, boxWidth), Random.Range(0, boxWidth), 10f);
-            velocityArray[i] = Random.onUnitSphere * speed;
-        }
-        
-        positionBuffer = new Buffer<Vector4>(particleCount, "positionBuffer", positionArray);
-        velocityBuffer = new Buffer<Vector4>(particleCount, "velocityBuffer", velocityArray);
-
-        positionBuffer.buffer.GetData(positionArray);
+        sorter = new Sorter(SortShader);
 
         visualiser = GetComponent<Visualiser>();
+
+
+        Vector3Int threadGroups = new Vector3Int(groupCount, 1, 1);
+
+        SetupBuffers();
+        SetupKernels();
     }
 
-    void Update()
-    {
-        visualiser.RenderParticles();
+    void Update() {
+
+        if (cachedParticleCount != particleCount || cachedSubMeshIndex != subMeshIndex || cachedBoxWidth != boxWidth || cachedRadius != radius) {
+            // Set box vector
+            box = new Vector3(boxWidth, boxWidth, boxWidth);
+            // Recalculate box vector - box must be the same size as the grid boundaries
+            box = new Vector3((int)(box.x/radius) * radius, (int)(box.y/radius) * radius, (int)(box.z/radius) * radius);
+            // Set box vector in compute shader
+            ParticleCompute.SetFloats("box", new [] {box.x, box.y, box.z});
+            
+            // Calculate grid dimensions
+            grid_dims = new Vector3Int((int)(box.x/radius), (int)(box.y/radius), (int)(box.z/radius));
+            // Calculate cell count
+            cellCount = grid_dims.x*grid_dims.y*grid_dims.z;
+            
+            ResetBuffers();
+
+            // Reset Kernels
+            if (sorter != null)
+                sorter.Dispose();
+            sorter = new Sorter(SortShader);
+            SetupKernels();
+        }
+
+
+        if (optimized) {
+            sorter.Sort(keysBuffer.buffer, cellIDBuffer.buffer);
+            particleRearrange.Run();
+            buildStartEndIDs.Run();
+            optimizedParticleUpdate.Run();
+        }
+
+        else {
+            particleUpdate.Run();
+        }
+
+        visualiser.RenderParticles(particleBuffer.buffer);
+    }
+
+    void SetupBuffers() {
+
+        Particle[] particleArray = new Particle[particleCount];
+        for (int i = 0; i < particleCount; i++) {
+            particleArray[i].position = new Vector4(Random.Range(0, boxWidth), Random.Range(0, boxWidth), Random.Range(0, boxWidth), 10f);
+            particleArray[i].velocity = Random.onUnitSphere * speed;
+        }
+
+        particleBuffer = new Buffer<Particle>(particleCount, "particleBuffer", particleArray);
+        particleIDBuffer = new Buffer<uint>(particleCount, "particleIDs");
+        cellIDBuffer = new Buffer<uint>(particleCount, "cellIDs");
+        keysBuffer = new Buffer<uint>(particleCount, "keys");
+        startendBuffer = new Buffer<Vector2Int>(cellCount, "startendIDs");
+        cellBuffer = new Buffer<Cell>(cellCount, "cellBuffer");
+        debug1Buffer = new Buffer<Vector4>(particleCount, "debugBuffer");
+
+
+    }
+
+    void SetupKernels() {
+        // Sort keys such that cellIDBuffer is ascending
+        particleRearrange.SetBuffers(new List<IBuffer>{particleIDBuffer, keysBuffer});
+        buildStartEndIDs.SetBuffers(new List<IBuffer>{particleIDBuffer, cellIDBuffer, startendBuffer, cellBuffer});
+        optimizedParticleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleIDBuffer, startendBuffer, cellBuffer, cellIDBuffer, debug1Buffer, debug2Buffer});
+        cellReset.SetBuffers(new List<IBuffer>{cellBuffer});
+    }
+
+    void ResetBuffers() {
+        particleBuffer.Reset(particleCount);
+        particleIDBuffer.Reset(particleCount);
+        keysBuffer.Reset(particleCount);
+        startendBuffer.Reset(particleCount);
+        cellIDBuffer.Reset(cellCount);
+        cellBuffer.Reset(cellCount);
+    }
+
+    void OnDisable() {
+        particleBuffer.Dispose();
+        particleIDBuffer.Dispose();
+        cellIDBuffer.Dispose();
+        startendBuffer.Dispose();
+        cellBuffer.Dispose();
+        keysBuffer.Dispose();
     }
 }
 
@@ -128,10 +204,10 @@ public class SimulationControl : MonoBehaviour {
 //             ParticleCompute.Dispatch(startendIDKernel, groupCount, 1, 1);
 
 //             // Update particle positions
-//             ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer", debugBuffer);
-//             ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer2", debugBuffer2);
-//             ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "debugBuffer3", debugBuffer3);
-//             ParticleCompute.Dispatch(optimizedParticleUpdateKernel, groupCount, 1, 1);
+//             ParticleCompute.SetBuffer(optimizedparticleUpdate, "debugBuffer", debugBuffer);
+//             ParticleCompute.SetBuffer(optimizedparticleUpdate, "debugBuffer2", debugBuffer2);
+//             ParticleCompute.SetBuffer(optimizedparticleUpdate, "debugBuffer3", debugBuffer3);
+//             ParticleCompute.Dispatch(optimizedparticleUpdate, groupCount, 1, 1);
 
 //             // Reset cell buffer
 //             ParticleCompute.Dispatch(cellResetKernel, groupCount, 1, 1);
@@ -139,7 +215,7 @@ public class SimulationControl : MonoBehaviour {
 
 //         else
 //         {
-//             ParticleCompute.Dispatch(particleUpdateKernel, groupCount, 1, 1);
+//             ParticleCompute.Dispatch(particleUpdate, groupCount, 1, 1);
 //         }
 
 //         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer);
@@ -334,19 +410,19 @@ public class SimulationControl : MonoBehaviour {
 //     void InitParticleUpdate(ComputeBuffer particleBuffer)
 //     {
 //         ParticleCompute.SetFloat("radius", radius);
-//         ParticleCompute.SetBuffer(particleUpdateKernel, "particleBuffer", particleBuffer);
+//         ParticleCompute.SetBuffer(particleUpdate, "particleBuffer", particleBuffer);
 //     }
 
 
 //     void InitOptimizedParticleUpdate(ComputeBuffer particleBuffer, ComputeBuffer cellIDBuffer, ComputeBuffer startendIDBuffer, ComputeBuffer particleIDBuffer)
 //     {
 //         ParticleCompute.SetFloat("radius", radius);
-//         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "particleBuffer", particleBuffer);
-//         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "startendIDs", startendIDBuffer);
-//         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "particleIDs", particleIDBuffer);
-//         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "cellIDs", cellIDBuffer);
-//         ParticleCompute.SetBuffer(optimizedParticleUpdateKernel, "cellBuffer", cellBuffer);
-//         ParticleCompute.SetTexture(optimizedParticleUpdateKernel, "NoiseTexture", NoiseTexture);
+//         ParticleCompute.SetBuffer(optimizedparticleUpdate, "particleBuffer", particleBuffer);
+//         ParticleCompute.SetBuffer(optimizedparticleUpdate, "startendIDs", startendIDBuffer);
+//         ParticleCompute.SetBuffer(optimizedparticleUpdate, "particleIDs", particleIDBuffer);
+//         ParticleCompute.SetBuffer(optimizedparticleUpdate, "cellIDs", cellIDBuffer);
+//         ParticleCompute.SetBuffer(optimizedparticleUpdate, "cellBuffer", cellBuffer);
+//         ParticleCompute.SetTexture(optimizedparticleUpdate, "NoiseTexture", NoiseTexture);
 //     }
 
 
