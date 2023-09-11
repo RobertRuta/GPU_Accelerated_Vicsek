@@ -86,6 +86,18 @@ namespace GPTCompute
             Dispose();
             buffer = new ComputeBuffer(length, Stride);
         }
+
+        public void Reset(int length, T[] initArray) {
+            Dispose();
+            buffer = new ComputeBuffer(length, Stride);
+            buffer.SetData(initArray);
+        }
+
+        public T[] ReturnData() {
+            T[] bufferArray = new T[Length];
+            buffer.GetData(bufferArray);
+            return bufferArray;
+        }
     }
 
     public class Kernel

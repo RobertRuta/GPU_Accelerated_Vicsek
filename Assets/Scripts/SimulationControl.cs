@@ -11,6 +11,7 @@ public class SimulationControl : MonoBehaviour {
     public float boxWidth = 100f;
     public float radius = 5;
     public float speed = 5;
+    public float timeStep = 1f/60f;
     [Range(0f, 1f)] public float noise = 1.0f;
 
     //      
@@ -70,95 +71,170 @@ public class SimulationControl : MonoBehaviour {
 
     const uint MAX_BUFFER_BYTES = 2147483648;
     int max_cell_count;
+    Vector3Int threadGroups;
 
     Visualiser visualiser;
 
     void Start() {
 
         sorter = new Sorter(SortShader);
-
         visualiser = GetComponent<Visualiser>();
 
-
-        Vector3Int threadGroups = new Vector3Int(groupCount, 1, 1);
-
+        groupCount = Mathf.CeilToInt((float)particleCount / 128);
+        threadGroups = new Vector3Int(groupCount, 1, 1);
+        max_cell_count = (int)MAX_BUFFER_BYTES / 8 / 2;
+        UpdateSimParams();
         SetupBuffers();
         SetupKernels();
+        // partice
     }
 
     void Update() {
 
         if (cachedParticleCount != particleCount || cachedSubMeshIndex != subMeshIndex || cachedBoxWidth != boxWidth || cachedRadius != radius) {
-            // Set box vector
-            box = new Vector3(boxWidth, boxWidth, boxWidth);
-            // Recalculate box vector - box must be the same size as the grid boundaries
-            box = new Vector3((int)(box.x/radius) * radius, (int)(box.y/radius) * radius, (int)(box.z/radius) * radius);
-            // Set box vector in compute shader
-            ParticleCompute.SetFloats("box", new [] {box.x, box.y, box.z});
+            UpdateSimParams();
             
-            // Calculate grid dimensions
-            grid_dims = new Vector3Int((int)(box.x/radius), (int)(box.y/radius), (int)(box.z/radius));
-            // Calculate cell count
-            cellCount = grid_dims.x*grid_dims.y*grid_dims.z;
-            
-            ResetBuffers();
+            // ResetBuffers();
 
-            // Reset Kernels
-            if (sorter != null)
-                sorter.Dispose();
-            sorter = new Sorter(SortShader);
-            SetupKernels();
+            // // Reset Kernels
+            // if (sorter != null)
+            //     sorter.Dispose();
+            // sorter = new Sorter(SortShader);
+            // SetupKernels();
         }
 
 
-        if (optimized) {
-            sorter.Sort(keysBuffer.buffer, cellIDBuffer.buffer);
-            particleRearrange.Run();
-            buildStartEndIDs.Run();
-            optimizedParticleUpdate.Run();
-        }
+        // if (optimized) {
+        //     sorter.Sort(keysBuffer.buffer, cellIDBuffer.buffer);
+        //     particleRearrange.Run();
+        //     buildStartEndIDs.Run();
+        //     optimizedParticleUpdate.Run();
+        // }
 
-        else {
-            particleUpdate.Run();
-        }
+        // else {
+        //     particleUpdate.Run();
+        // }
+
+        Particle[] data = particleBuffer.ReturnData();
+        for (int i = 0; i < 10; i++)
+            print(data[i].position);
 
         visualiser.RenderParticles(particleBuffer.buffer);
     }
 
     void SetupBuffers() {
-
-        Particle[] particleArray = new Particle[particleCount];
-        for (int i = 0; i < particleCount; i++) {
-            particleArray[i].position = new Vector4(Random.Range(0, boxWidth), Random.Range(0, boxWidth), Random.Range(0, boxWidth), 10f);
-            particleArray[i].velocity = Random.onUnitSphere * speed;
-        }
-
-        particleBuffer = new Buffer<Particle>(particleCount, "particleBuffer", particleArray);
+        particleBuffer = new Buffer<Particle>(particleCount, "particleBuffer", InitParticleArray());
         particleIDBuffer = new Buffer<uint>(particleCount, "particleIDs");
         cellIDBuffer = new Buffer<uint>(particleCount, "cellIDs");
         keysBuffer = new Buffer<uint>(particleCount, "keys");
         startendBuffer = new Buffer<Vector2Int>(cellCount, "startendIDs");
         cellBuffer = new Buffer<Cell>(cellCount, "cellBuffer");
         debug1Buffer = new Buffer<Vector4>(particleCount, "debugBuffer");
+        debug2Buffer = new Buffer<Vector4>(particleCount, "debugBuffer2");
+        debug3Buffer = new Buffer<Vector4>(particleCount, "debugBuffer3");
+    }
 
-
+    Particle[] InitParticleArray() {
+        Particle[] particleArray = new Particle[particleCount];
+        for (int i = 0; i < particleCount; i++) {
+            particleArray[i].position = new Vector4(Random.Range(0f, boxWidth), Random.Range(0f, boxWidth), Random.Range(0f, boxWidth), 10f);
+            particleArray[i].velocity = Random.onUnitSphere * speed;
+        }
+        return particleArray;
     }
 
     void SetupKernels() {
-        // Sort keys such that cellIDBuffer is ascending
+        particleRearrange = new Kernel(ParticleCompute, "RearrangeParticleIDs", threadGroups);
+        buildStartEndIDs = new Kernel(ParticleCompute, "BuildStartEndIDs", threadGroups);
+        particleUpdate = new Kernel(ParticleCompute, "ParticleUpdate", threadGroups);
+        optimizedParticleUpdate = new Kernel(ParticleCompute, "OptimizedParticleUpdate", threadGroups);
+        cellReset = new Kernel(ParticleCompute, "ResetCellBuffer", threadGroups);
+
         particleRearrange.SetBuffers(new List<IBuffer>{particleIDBuffer, keysBuffer});
         buildStartEndIDs.SetBuffers(new List<IBuffer>{particleIDBuffer, cellIDBuffer, startendBuffer, cellBuffer});
-        optimizedParticleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleIDBuffer, startendBuffer, cellBuffer, cellIDBuffer, debug1Buffer, debug2Buffer});
+        optimizedParticleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleIDBuffer, startendBuffer, cellBuffer, cellIDBuffer, debug1Buffer, debug2Buffer, debug3Buffer});
         cellReset.SetBuffers(new List<IBuffer>{cellBuffer});
+
+        particleRearrange.InitBuffers();
+        buildStartEndIDs.InitBuffers();
+        optimizedParticleUpdate.InitBuffers();
+        cellReset.InitBuffers();
     }
 
     void ResetBuffers() {
-        particleBuffer.Reset(particleCount);
+        particleBuffer.Reset(particleCount, InitParticleArray());
         particleIDBuffer.Reset(particleCount);
         keysBuffer.Reset(particleCount);
         startendBuffer.Reset(particleCount);
         cellIDBuffer.Reset(cellCount);
         cellBuffer.Reset(cellCount);
+        debug1Buffer.Reset(cellCount);
+        debug2Buffer.Reset(cellCount);
+        debug3Buffer.Reset(cellCount);
+    }
+
+    void UpdateSimParams()
+    {
+        // Set particle count
+        if (particleCount != cachedParticleCount)
+            particleCount = Mathf.NextPowerOfTwo(particleCount) >> 1;
+
+        // Clamp radius and boxWidth
+        if (boxWidth != cachedBoxWidth)
+            RecalcRadiusRange();
+        if (radius != cachedRadius)
+            RecalcBoxRange();
+        radius = Mathf.Clamp(radius, radius_range.x, radius_range.y);
+        boxWidth = Mathf.Clamp(boxWidth, box_range.x, box_range.y);
+
+        // Set box vector
+        box = new Vector3(boxWidth, boxWidth, boxWidth);
+        // Recalculate box vector - box must be the same size as the grid boundaries
+        box = new Vector3((int)(box.x/radius) * radius, (int)(box.y/radius) * radius, (int)(box.z/radius) * radius);
+
+        // Calculate grid dimensions
+        grid_dims = new Vector3Int((int)(box.x/radius), (int)(box.y/radius), (int)(box.z/radius));
+        // Set grid dimensions in compute shader
+        ParticleCompute.SetInts("grid_dims", new [] {grid_dims.x, grid_dims.y, grid_dims.z});
+        // Calculate cell count
+        cellCount = grid_dims.x*grid_dims.y*grid_dims.z;
+        
+        // Some informational metrics
+        particleDensity = particleCount / (boxWidth*boxWidth*boxWidth);
+        particleCellDensity = particleCount / cellCount;
+
+        // Caching simulation parameters
+        cachedParticleCount = particleCount;
+        cachedBoxWidth = boxWidth;
+        cachedRadius = radius;
+        cachedSubMeshIndex = subMeshIndex;
+    }
+
+    void UpdateComputeShaderVariables() {
+        // Update compute shader variables
+        ParticleCompute.SetInt("particle_count", particleCount);
+        ParticleCompute.SetFloats("box", new [] {box.x, box.y, box.z});
+        ParticleCompute.SetFloat("speed", speed);
+        ParticleCompute.SetFloat("dt", timeStep);
+        ParticleCompute.SetFloat("time", Time.time);
+        ParticleCompute.SetFloat("noise", noise);
+        ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
+        ParticleCompute.SetInt("frame_counter", frameCounter);
+    }
+
+
+    void RecalcRadiusRange() {
+        float MAX = 20f;
+        float MIN = 0.1f;
+        radius_range.x = Mathf.Clamp(box_range.y / Mathf.Pow((float)max_cell_count, 1f/3f), MIN, MAX);
+        radius_range.y = Mathf.Clamp(box_range.y, MIN, MAX);   
+    }
+
+    void RecalcBoxRange() {
+        float MAX = 100f;
+        float MIN = 1f;
+        box_range.x = MIN;
+        box_range.y = Mathf.Clamp((Mathf.Pow((float)max_cell_count, 1f/3f) * radius), MIN, MAX);
     }
 
     void OnDisable() {
@@ -168,6 +244,9 @@ public class SimulationControl : MonoBehaviour {
         startendBuffer.Dispose();
         cellBuffer.Dispose();
         keysBuffer.Dispose();
+        debug1Buffer.Dispose();
+        debug2Buffer.Dispose();
+        debug3Buffer.Dispose();
     }
 }
 

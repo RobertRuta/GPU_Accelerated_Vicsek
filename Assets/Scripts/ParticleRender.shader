@@ -2,6 +2,7 @@
     Properties {
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _ColorIntensity ("Color Intensity", Range(2, 10)) = 1
+        _ParticleSize ("Particle Size", Range(0.1, 10)) = 1
     }
     SubShader {
 
@@ -22,6 +23,7 @@
 
             sampler2D _MainTex;
             float _ColorIntensity;
+            float _ParticleSize;
 
             struct Particle
             {
@@ -30,8 +32,6 @@
             };
 
         #if SHADER_TARGET >= 45
-            // Buffer<float4> positionBuffer;
-            // Buffer<float4> velocityBuffer;
             StructuredBuffer<Particle> particleBuffer;
         #endif
 
@@ -49,12 +49,11 @@
             {
             #if SHADER_TARGET >= 45
                 float4 data = particleBuffer[instanceID].position;
-                // float4 data = positionBuffer[instanceID];
             #else
                 float4 data = 0;
             #endif
 
-                float3 localPosition = v.vertex.xyz * data.w;
+                float3 localPosition = v.vertex.xyz * _ParticleSize;
                 float3 worldPosition = data.xyz + localPosition;
                 float3 worldNormal = v.normal;
 
