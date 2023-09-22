@@ -31,6 +31,7 @@
                 float4 velocity;
             };
 
+
         #if SHADER_TARGET >= 45
             StructuredBuffer<Particle> particleBuffer;
         #endif
@@ -48,23 +49,39 @@
             v2f vert (appdata_full v, uint instanceID : SV_InstanceID)
             {
             #if SHADER_TARGET >= 45
-                float4 data = particleBuffer[instanceID].position;
+                float4 position = particleBuffer[instanceID].position;
+                float4 velocity = particleBuffer[instanceID].velocity;
             #else
-                float4 data = 0;
+                float4 position = 0;
+                float4 velocity = 0;
             #endif
 
+                // Calculate the rotation matrix based on the velocity vector
+                // This assumes the forward direction of the mesh aligns with the velocity vector
+                float3 upVector = float3(0, 1, 0); // Define the up vector (adjust as needed)
+                float3 forward = normalize(velocity.xyz);
+                float3 right = normalize(cross(upVector, forward));
+                upVector = cross(forward, right);
+
+                float4x4 rotationMatrix = float4x4(
+                    float4(right, 0),
+                    float4(upVector, 0),
+                    float4(forward, 0),
+                    float4(0, 0, 0, 1)
+                );
+
+
+                // float3 localPosition = rotatedPosition * _ParticleSize;
                 float3 localPosition = v.vertex.xyz * _ParticleSize;
-                float3 worldPosition = data.xyz + localPosition;
+                // float3 rotatedPosition = mul(rotationMatrix, float4(localPosition, 1)).xyz;
+                float3 worldPosition = position.xyz + localPosition;
                 float3 worldNormal = v.normal;
 
                 float3 ndotl = saturate(dot(worldNormal, _WorldSpaceLightPos0.xyz));
                 float3 ambient = ShadeSH9(float4(worldNormal, 1.0f));
                 float3 diffuse = (ndotl * _LightColor0.rgb);
                 float3 velocity_color = normalize(particleBuffer[instanceID].velocity.xyz)*2 - float3(1, 1, 1);
-                // float3 velocity_color = normalize(velocityBuffer[instanceID].xyz)*2 - float3(1, 1, 1);
-                // float3 color = v.color;
                 float3 color = normalize(velocity_color) * _ColorIntensity;
-                // float3 color = float3(1,1,1);
 
                 v2f o;
                 o.pos = mul(UNITY_MATRIX_VP, float4(worldPosition, 1.0f));
