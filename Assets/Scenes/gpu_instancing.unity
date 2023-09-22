@@ -349,19 +349,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 772d0d02b3bb57b4084e147788dc4e63, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {x: 0, y: 0, z: 0}
-  xSpeed: 1
+  xSpeed: 2
   ySpeed: 2
-  zoomSpeed: 50
+  zoomSpeed: 100
   inertialDamping: 0.05
-  x: 0
-  y: 0
   distance: 0
-  dx: 0
-  dy: 0
-  sim: {fileID: 0}
-  boxWidth: 0
-  initPosition: {x: 0, y: 0, z: 0}
 --- !u!1 &895109121
 GameObject:
   m_ObjectHideFlags: 0
@@ -411,19 +403,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f4a570d99c694b4a8bd5846219cccbd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleCount: 2000
+  particleCount: 100000
   boxWidth: 100
   radius: 5
   speed: 5
-  noise: 1
+  timeStep: 0.016666668
+  noise: 0
   radius_range: {x: 0, y: 0}
   particleDensity: 0
   particleCellDensity: 0
   ParticleCompute: {fileID: 7200000, guid: d0fe8b7542cd3674c910fcb5b21c1f6a, type: 3}
-  SortShader: {fileID: 0}
-  particleMaterial: {fileID: 2100000, guid: c203a09b5125471448363d6d4116495a, type: 2}
-  particleMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  subMeshIndex: 0
+  SortShader: {fileID: 7200000, guid: 4aca9ca9732bed94092cd70359a4508f, type: 3}
   box_range: {x: 0, y: 0}
   box: {x: 0, y: 0, z: 0}
   grid_dims: {x: 0, y: 0, z: 0}
@@ -441,9 +431,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fb14b7a00b9c79f49b9c96c2f03d28c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  subMeshIndex: 0
   particleMaterial: {fileID: 2100000, guid: c203a09b5125471448363d6d4116495a, type: 2}
+  particleMesh: {fileID: 3613567641014311022, guid: 23a035a5bd157ec43a1125f6602012da, type: 3}
+  subMeshIndex: 0
+  particleSize: 1
+  colorIntensity: 5
 --- !u!1 &1299154866
 GameObject:
   m_ObjectHideFlags: 0
