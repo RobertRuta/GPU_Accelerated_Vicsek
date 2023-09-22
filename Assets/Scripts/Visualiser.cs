@@ -3,9 +3,12 @@ using GPTCompute;
 
 public class Visualiser : MonoBehaviour
 {
+    public Material particleMaterial;
     public Mesh particleMesh;
     public int subMeshIndex;
-    public Material particleMaterial;
+    public float particleSize;
+    public float colorIntensity;
+
     Buffer<uint> argsBuffer;
     uint[] args = new uint[5]{0,0,0,0,0};
     SimulationControl sim;
@@ -20,6 +23,8 @@ public class Visualiser : MonoBehaviour
         
         SetupIndirectArgs();
         particleMaterial.SetBuffer("particleBuffer", sim.particleBuffer.buffer);
+        particleMaterial.SetFloat("_ColorIntensity", colorIntensity);
+        particleMaterial.SetFloat("_ParticleSize", particleSize);
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer.buffer);
     }
 
