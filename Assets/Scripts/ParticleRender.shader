@@ -55,26 +55,29 @@
                 float4 position = 0;
                 float4 velocity = 0;
             #endif
+                float3 direction = normalize(velocity);
+                float angle_z = atan2(direction.y, direction.x);
+                float angle_y = acos(direction.z);
 
-                // Calculate the rotation matrix based on the velocity vector
-                // This assumes the forward direction of the mesh aligns with the velocity vector
-                float3 upVector = float3(0, 1, 0); // Define the up vector (adjust as needed)
-                float3 forward = normalize(velocity.xyz);
-                float3 right = normalize(cross(upVector, forward));
-                upVector = cross(forward, right);
-
-                float4x4 rotationMatrix = float4x4(
-                    float4(right, 0),
-                    float4(upVector, 0),
-                    float4(forward, 0),
-                    float4(0, 0, 0, 1)
+                // Construct rotation matrices
+                float3x3 rotationMatrixY = float3x3(
+                    cos(angle_y), 0, sin(angle_y),
+                    0, 1, 0,
+                    -sin(angle_y), 0, cos(angle_y)
                 );
 
+                float3x3 rotationMatrixZ = float3x3(
+                    cos(angle_z), -sin(angle_z), 0,
+                    sin(angle_z), cos(angle_z), 0,
+                    0, 0, 1
+                );
 
-                // float3 localPosition = rotatedPosition * _ParticleSize;
+                float3x3 rotationMatrixZY = mul(rotationMatrixZ, rotationMatrixY);
+
                 float3 localPosition = v.vertex.xyz * _ParticleSize;
-                // float3 rotatedPosition = mul(rotationMatrix, float4(localPosition, 1)).xyz;
-                float3 worldPosition = position.xyz + localPosition;
+                float3 rotatedPosition = mul(rotationMatrixZY, localPosition);
+
+                float3 worldPosition = position.xyz + rotatedPosition;
                 float3 worldNormal = v.normal;
 
                 float3 ndotl = saturate(dot(worldNormal, _WorldSpaceLightPos0.xyz));
