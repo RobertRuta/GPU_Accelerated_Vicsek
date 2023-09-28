@@ -75,7 +75,7 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
     float3 other_vector = GetOtherVector(average_direction);
     float3 normal_vector = cross(other_vector, average_direction);
     float phi = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
-    float theta = ((float)time_particle_seed / (float)0xffffffff * 2 - 1) * PI * noise; // Random angle
+    float theta = ((float)time_particle_seed / (float)0xffffffff - 0.5) * PI * noise; // Random angle
     
     float3 new_direction = RodriguezRot(average_direction, normal_vector, theta);
     new_direction = RodriguezRot(new_direction, average_direction, phi);
