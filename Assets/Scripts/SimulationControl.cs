@@ -26,6 +26,7 @@ public class SimulationControl : MonoBehaviour {
     int cachedParticleCount = -1;
     float cachedBoxWidth = -1f;
     float cachedRadius = -1f;
+    float cachedTime = 0f;
     ComputeBuffer argsBuffer;
     uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
     
@@ -91,15 +92,17 @@ public class SimulationControl : MonoBehaviour {
 
     void Update() {
         if (cachedParticleCount != particleCount || cachedBoxWidth != boxWidth || cachedRadius != radius) {
-            UpdateSimParams();
-            
-            // Reset Sorter
-            if (sorter != null)
-                sorter.Dispose();
-            sorter = new Sorter(SortShader);
-            
-            ResetBuffers();
-            SetupKernels();
+            if ((Time.time - cachedTime) > 1f) {
+                UpdateSimParams();
+                
+                // Reset Sorter
+                if (sorter != null)
+                    sorter.Dispose();
+                sorter = new Sorter(SortShader);
+                
+                ResetBuffers();
+                SetupKernels();
+            }
         }
 
         UpdateComputeShaderVariables();
@@ -129,6 +132,7 @@ public class SimulationControl : MonoBehaviour {
         // Set particle count
         if (particleCount != cachedParticleCount)
             particleCount = Mathf.NextPowerOfTwo(particleCount) >> 1;
+
         // Set box vector
         box = new Vector3(boxWidth, boxWidth, boxWidth);
         // Recalculate box vector - box must be the same size as the grid boundaries
@@ -145,6 +149,7 @@ public class SimulationControl : MonoBehaviour {
         cachedParticleCount = particleCount;
         cachedBoxWidth = boxWidth;
         cachedRadius = radius;
+        cachedTime = Time.time;
     }
 
     // Create array of random particle positions and velocities
