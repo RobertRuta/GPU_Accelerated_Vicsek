@@ -1,7 +1,7 @@
 using UnityEngine;
 using BufferSorter;
 using vicsek;
-using GPTCompute;
+using GPUCompute;
 using System.Collections.Generic;
 
 public class SimulationControl : MonoBehaviour {
@@ -70,7 +70,7 @@ public class SimulationControl : MonoBehaviour {
     Visualiser visualiser;
 
 
-    // RUN ON FIRST FRAME
+    ///// ----- RUN ON FIRST FRAME ----- /////
 
     void Start() {
 
@@ -87,7 +87,7 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
-    // RUN ONCE EVERY FRAME
+    ///// ----- RUN ONCE EVERY FRAME ----- /////
 
     void Update() {
         if (cachedParticleCount != particleCount || cachedBoxWidth != boxWidth || cachedRadius != radius) {
@@ -121,7 +121,7 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
-    // HELPER FUNCTIONS
+    ///// ----- HELPER FUNCTIONS ----- /////
 
     // Recalculate simulation parameters
     void UpdateSimParams()

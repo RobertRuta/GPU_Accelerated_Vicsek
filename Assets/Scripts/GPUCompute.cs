@@ -1,65 +1,145 @@
-// using UnityEngine;
-// using System.Runtime.InteropServices;
-// using System.Collections.Generic;
+using UnityEngine;
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
-// namespace GPUCompute
-// {    
-//     public class Buffer<T> : IDisposable
-//     {
-//         public ComputeBuffer buffer;
-//         public string name;
-//         public int length, stride;
-        
-//         public Buffer(int buffer_length, string name) {
-//             this.name = name;
-//             length = buffer_length;
-//             stride = Marshal.SizeOf(typeof(T));
-
-//             T[] initArray = new T[buffer_length];
-//             for (int i = 0; i < buffer_length; i++)
-//                 initArray[i] = 0;
-
-//             buffer = new ComputeBuffer(buffer_length, stride);
-//             buffer.SetData(initArray);
-//         }
-
-//         public void Dispose() {
-//             if (buffer != null)
-//                 buffer.Release();
-//             buffer = null;
-//         }
-
-//         public void Reset() {
-//             Dispose();
-//             buffer = new ComputeBuffer(length, stride);
-//         }
-//     }
+namespace GPUCompute
+{
+    public interface IBuffer
+    {
+        ComputeBuffer buffer { get; }
+        string Name { get; }
+    }
 
 
-//     public class Kernel {
-//         ComputeShader Compute;
-//         int kernel_id;
-//         Vector3Int thread_groups;
-//         List<Buffer> buffers;
+    public class Buffer<T> : IBuffer, IDisposable where T : struct
+    {
+        public ComputeBuffer buffer { get; private set; }
+        public string Name { get; private set; }
+        public int Length { get; private set; }
+        public int Stride { get; private set; }
 
-//         public Kernel(ComputeShader cs, string name, Vector3Int thread_groups) {
-//             Compute = cs;
-//             kernel_id = Compute.FindKernel(name);
-//             this.thread_groups = thread_groups;
-//         }
+        public Buffer(int length, string name)
+        {
+            Name = name;
+            Length = length;
+            Stride = Marshal.SizeOf(typeof(T));
 
-//         public void SetBuffers(List<Buffer<T>> buffers) {
-//             this.buffers = buffers;
-//         }
+            T[] initArray = new T[length];
+            for (int i = 0; i < length; i++)
+                initArray[i] = default(T);
 
-//         public void InitBuffers() {
-//             foreach (Buffer b in buffers) {
-//                 Compute.SetBuffer(kernel_id, b.name, b.buffer);
-//             }
-//         }
+            try {
+                buffer = new ComputeBuffer(length, Stride);
+                buffer.SetData(initArray);
+            }
+            catch (Exception ex) {
+                Debug.LogError($"Failed to create ComputeBuffer: {ex.Message}");
+                buffer = null;
+            }
+        }
 
-//         public void Run() {
-//             Compute.Dispatch(kernel_id, thread_groups.x, thread_groups.y, thread_groups.z);
-//         }
-//     }
-// }
+
+        public Buffer(int length, string name, T[] initArray)
+        {
+            Name = name;
+            Length = length;
+            Stride = Marshal.SizeOf(typeof(T));
+
+            try {
+                buffer = new ComputeBuffer(length, Stride);
+                buffer.SetData(initArray);
+            }
+            catch (Exception ex) {
+                Debug.LogError($"Failed to create ComputeBuffer: {ex.Message}");
+                buffer = null;
+            }
+        }
+
+
+        public Buffer(int length, string name, T[] initArray, ComputeBufferType bufferType)
+        {
+            Name = name;
+            Length = length;
+            Stride = Marshal.SizeOf(typeof(T));
+
+            try {
+                buffer = new ComputeBuffer(length, Stride, bufferType);
+                buffer.SetData(initArray);
+            }
+            catch (Exception ex) {
+                Debug.LogError($"Failed to create ComputeBuffer: {ex.Message}");
+                buffer = null;
+            }
+        }
+
+        public void Dispose() {
+            if (buffer != null) {
+                buffer.Release();
+                buffer = null;
+            }
+        }
+
+        public void Reset() {
+            Dispose();
+            buffer = new ComputeBuffer(Length, Stride);
+        }
+
+        public void Reset(int length) {
+            Dispose();
+            buffer = new ComputeBuffer(length, Stride);
+        }
+
+        public void Reset(int length, T[] initArray) {
+            Dispose();
+            buffer = new ComputeBuffer(length, Stride);
+            buffer.SetData(initArray);
+        }
+
+        public T[] ReturnData() {
+            T[] bufferArray = new T[Length];
+            buffer.GetData(bufferArray);
+            return bufferArray;
+        }
+    }
+
+
+    public class Kernel
+    {
+        ComputeShader Compute;
+        int kernel_id;
+        Vector3Int thread_groups;
+        List<IBuffer> buffers;
+
+        public Kernel(ComputeShader cs, string name, Vector3Int threadGroups)
+        {
+            Compute = cs;
+            kernel_id = Compute.FindKernel(name);
+            thread_groups = threadGroups;
+            buffers = new List<IBuffer>();
+        }
+
+        public void SetBuffers(List<IBuffer> buffers)
+        {
+            this.buffers = buffers;
+        }
+
+        public void AddBuffer(IBuffer buffer)
+        {
+            buffers.Add(buffer);
+        }
+
+        public void InitBuffers()
+        {
+            foreach (IBuffer buffer in buffers)
+            {
+                Compute.SetBuffer(kernel_id, buffer.Name, buffer.buffer);
+            }
+        }
+
+        public void Run()
+        {
+            Compute.Dispatch(kernel_id, thread_groups.x, thread_groups.y, thread_groups.z);
+        }
+    }
+}

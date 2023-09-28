@@ -24,6 +24,7 @@
             sampler2D _MainTex;
             float _ColorIntensity;
             float _ParticleSize;
+            bool _EnableHeading;
 
             struct Particle
             {
@@ -75,9 +76,10 @@
                 float3x3 rotationMatrixZY = mul(rotationMatrixZ, rotationMatrixY);
 
                 float3 localPosition = v.vertex.xyz * _ParticleSize;
-                float3 rotatedPosition = mul(rotationMatrixZY, localPosition);
+                if (_EnableHeading)
+                    localPosition = mul(rotationMatrixZY, localPosition); // Rotating to looking in direction of motion
 
-                float3 worldPosition = position.xyz + rotatedPosition;
+                float3 worldPosition = position.xyz + localPosition;
                 float3 worldNormal = v.normal;
 
                 float3 ndotl = saturate(dot(worldNormal, _WorldSpaceLightPos0.xyz));

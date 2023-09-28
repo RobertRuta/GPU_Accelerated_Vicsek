@@ -1,5 +1,5 @@
 using UnityEngine;
-using GPTCompute;
+using GPUCompute;
 
 public class Visualiser : MonoBehaviour
 {
@@ -8,16 +8,18 @@ public class Visualiser : MonoBehaviour
     public int subMeshIndex;
     public float particleSize;
     public float colorIntensity;
+    public bool enableHeading;
 
     Buffer<uint> argsBuffer;
     uint[] args = new uint[5]{0,0,0,0,0};
     SimulationControl sim;
 
+
     void Awake() {
         sim = GetComponent<SimulationControl>();
-        // argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
         argsBuffer = new Buffer<uint>(5, "args", args, ComputeBufferType.IndirectArguments);
     }
+
 
     public void RenderParticles(ComputeBuffer particleBuffer) {
         
@@ -25,6 +27,10 @@ public class Visualiser : MonoBehaviour
         particleMaterial.SetBuffer("particleBuffer", sim.particleBuffer.buffer);
         particleMaterial.SetFloat("_ColorIntensity", colorIntensity);
         particleMaterial.SetFloat("_ParticleSize", particleSize);
+        int headingInt = 0;
+        if (enableHeading)
+            headingInt = 1;
+        particleMaterial.SetInt("_EnableHeading", headingInt);
         Graphics.DrawMeshInstancedIndirect(particleMesh, subMeshIndex, particleMaterial, new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)), argsBuffer.buffer);
     }
 
@@ -44,6 +50,7 @@ public class Visualiser : MonoBehaviour
         }
         argsBuffer.buffer.SetData(args);
     }
+
 
     void OnDisable() {
         argsBuffer.Dispose();
