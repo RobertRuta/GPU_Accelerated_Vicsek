@@ -78,8 +78,7 @@ public class SimulationControl : MonoBehaviour {
         sorter = new Sorter(SortShader);
         visualiser = GetComponent<Visualiser>();
 
-        groupCount = Mathf.CeilToInt((float)particleCount / 128);
-        threadGroups = new Vector3Int(groupCount, 1, 1);
+
         max_cell_count = (int)(MAX_BUFFER_BYTES / 8);
 
         UpdateSimParams();
@@ -129,9 +128,13 @@ public class SimulationControl : MonoBehaviour {
     // Recalculate simulation parameters
     void UpdateSimParams()
     {
+
         // Set particle count
         if (particleCount != cachedParticleCount)
             particleCount = Mathf.NextPowerOfTwo(particleCount) >> 1;
+            
+        groupCount = Mathf.CeilToInt((float)particleCount / 128);
+        threadGroups = new Vector3Int(groupCount, 1, 1);
 
         // Set box vector
         box = new Vector3(boxWidth, boxWidth, boxWidth);
