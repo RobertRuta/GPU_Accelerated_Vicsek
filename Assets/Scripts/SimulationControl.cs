@@ -31,10 +31,10 @@ public class SimulationControl : MonoBehaviour {
 
     // Compute buffers
     public Buffer<Particle> particleBuffer, particleInBuffer;
-    Buffer<Vector4> debug1Buffer, debug2Buffer, debug3Buffer;
-    Buffer<uint> particleIDBuffer, cellIDBuffer, keysBuffer;
-    Buffer<Vector2Int> startendBuffer;
-    Buffer<Cell> cellBuffer;
+    public Buffer<Vector4> debugBuffer1, debugBuffer2, debugBuffer3;
+    public Buffer<uint> particleIDBuffer, cellIDBuffer, keysBuffer;
+    public Buffer<Vector2Int> startendBuffer;
+    public Buffer<Cell> cellBuffer;
     
     // Compute shader kernels
     Kernel particleUpdate;
@@ -132,9 +132,9 @@ public class SimulationControl : MonoBehaviour {
         startendBuffer.Dispose();
         cellBuffer.Dispose();
         keysBuffer.Dispose();
-        debug1Buffer.Dispose();
-        debug2Buffer.Dispose();
-        debug3Buffer.Dispose();
+        debugBuffer1.Dispose();
+        debugBuffer2.Dispose();
+        debugBuffer3.Dispose();
         if (sorter != null)
             sorter.Dispose();
     }
@@ -198,9 +198,9 @@ public class SimulationControl : MonoBehaviour {
         keysBuffer = new Buffer<uint>(particleCount, "keys");
         startendBuffer = new Buffer<Vector2Int>(cellCount, "startendIDs");
         cellBuffer = new Buffer<Cell>(cellCount, "cellBuffer");
-        debug1Buffer = new Buffer<Vector4>(particleCount, "debugBuffer");
-        debug2Buffer = new Buffer<Vector4>(particleCount, "debugBuffer2");
-        debug3Buffer = new Buffer<Vector4>(particleCount, "debugBuffer3");
+        debugBuffer1 = new Buffer<Vector4>(particleCount, "debugBuffer1");
+        debugBuffer2 = new Buffer<Vector4>(particleCount, "debugBuffer2");
+        debugBuffer3 = new Buffer<Vector4>(particleCount, "debugBuffer3");
     }
 
 
@@ -218,7 +218,7 @@ public class SimulationControl : MonoBehaviour {
         particleRearrange.SetBuffers(new List<IBuffer>{particleIDBuffer, keysBuffer});
         buildStartEndIDs.SetBuffers(new List<IBuffer>{particleIDBuffer, cellIDBuffer, startendBuffer, cellBuffer});
         particleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleInBuffer});
-        optimizedParticleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleInBuffer, particleIDBuffer, startendBuffer, cellBuffer, cellIDBuffer, debug1Buffer, debug2Buffer});
+        optimizedParticleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleInBuffer, particleIDBuffer, startendBuffer, cellBuffer, cellIDBuffer, debugBuffer1, debugBuffer2});
         cellReset.SetBuffers(new List<IBuffer>{cellBuffer});
         copyBuffer.SetBuffers(new List<IBuffer>{particleBuffer, particleInBuffer});
 
@@ -242,9 +242,9 @@ public class SimulationControl : MonoBehaviour {
         startendBuffer.Reset(cellCount);
         cellIDBuffer.Reset(particleCount);
         cellBuffer.Reset(cellCount);
-        debug1Buffer.Reset(particleCount);
-        debug2Buffer.Reset(particleCount);
-        debug3Buffer.Reset(particleCount);
+        debugBuffer1.Reset(particleCount);
+        debugBuffer2.Reset(particleCount);
+        debugBuffer3.Reset(particleCount);
     }
 
 

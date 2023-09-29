@@ -31,7 +31,7 @@ RWStructuredBuffer<uint> cellIDs;
 RWStructuredBuffer<uint> particleIDs;
 RWStructuredBuffer<uint> keys;
 RWStructuredBuffer<uint2> startendIDs;
-RWStructuredBuffer<float4> debugBuffer;
+RWStructuredBuffer<float4> debugBuffer1;
 RWStructuredBuffer<float4> debugBuffer2;
 RWStructuredBuffer<float4> debugBuffer3;
 
@@ -194,7 +194,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     
     ////////// ------ DEBUG BUFFER ------ //////////
 
-    debugBuffer[id.x] = float4(1,1,1,1);
+    debugBuffer1[id.x] = float4(1,1,1,1);
     debugBuffer2[id.x] = float4(average_direction, noise);
 }
 
