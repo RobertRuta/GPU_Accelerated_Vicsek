@@ -27,6 +27,7 @@ public class SimulationControl : MonoBehaviour {
     float cachedBoxWidth = -1f;
     float cachedRadius = -1f;
     float cachedTime = 0f;
+    public bool resetToggle = false;
 
     // Compute buffers
     public Buffer<Particle> particleBuffer, particleInBuffer;
@@ -85,7 +86,7 @@ public class SimulationControl : MonoBehaviour {
     ///// ----- RUN ONCE EVERY FRAME ----- /////
 
     void Update() {
-        if ((cachedParticleCount != particleCount || cachedBoxWidth != boxWidth || cachedRadius != radius) && ((Time.time - cachedTime) > 1f)) {
+        if (((cachedParticleCount != particleCount || cachedBoxWidth != boxWidth || cachedRadius != radius) && ((Time.time - cachedTime) > 1f)) || resetToggle) {
             UpdateSimulationParameters();
             
             // Reset Sorter
@@ -95,6 +96,8 @@ public class SimulationControl : MonoBehaviour {
             
             ResetBuffers();
             SetupKernels();
+            
+            resetToggle = false;
         }
 
         UpdateComputeShaderVariables();

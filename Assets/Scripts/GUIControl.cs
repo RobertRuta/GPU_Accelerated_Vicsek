@@ -30,6 +30,9 @@ public class GUIControl : MonoBehaviour {
         GUI.Label(new Rect(800, 15, 200, 60), "Initial Particle Density \n" + particleDensity.ToString("F3") + " particles/m^3");
         GUI.Label(new Rect(800, 75, 200, 60), "Initial Particle Cell Density \n" + particleCellDensity.ToString("F3") + " particles/cell");
 
+        if (GUI.Button(new Rect(25, 15 + labelCounter * 30, 100, 30), "Reset"))
+            sim.resetToggle = true;
+
         labelCounter = 0;
     }
 
