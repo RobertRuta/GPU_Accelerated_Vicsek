@@ -37,11 +37,12 @@ public class SimulationControl : MonoBehaviour {
     Buffer<Cell> cellBuffer;
     
     // Compute shader kernels
-    Kernel particleRearrange;
-    Kernel buildStartEndIDs;
     Kernel particleUpdate;
     Kernel optimizedParticleUpdate;
+    Kernel particleRearrange;
+    Kernel buildStartEndIDs;
     Kernel cellReset;
+    Kernel copyBuffer;
 
     // Number of thread groups
     int groupCount;
@@ -114,6 +115,8 @@ public class SimulationControl : MonoBehaviour {
         else {
             particleUpdate.Run();
         }
+        
+        copyBuffer.Run();
 
         visualiser.RenderParticles(particleBuffer.buffer);
     }
@@ -123,6 +126,7 @@ public class SimulationControl : MonoBehaviour {
 
     void OnDisable() {
         particleBuffer.Dispose();
+        particleInBuffer.Dispose();
         particleIDBuffer.Dispose();
         cellIDBuffer.Dispose();
         startendBuffer.Dispose();
@@ -187,8 +191,8 @@ public class SimulationControl : MonoBehaviour {
 
     // Initialise buffers
     void SetupBuffers() {
-        Particle[] initArray = InitParticleArray();
-        particleBuffer = new Buffer<Particle>(particleCount, "particleBuffer", initArray);
+        particleBuffer = new Buffer<Particle>(particleCount, "particleBuffer", InitParticleArray());
+        particleInBuffer = new Buffer<Particle>(particleCount, "particleInBuffer", InitParticleArray());
         particleIDBuffer = new Buffer<uint>(particleCount, "particleIDs");
         cellIDBuffer = new Buffer<uint>(particleCount, "cellIDs");
         keysBuffer = new Buffer<uint>(particleCount, "keys");
@@ -208,13 +212,15 @@ public class SimulationControl : MonoBehaviour {
         particleUpdate = new Kernel(ParticleCompute, "ParticleUpdate", threadGroups);
         optimizedParticleUpdate = new Kernel(ParticleCompute, "OptimizedParticleUpdate", threadGroups);
         cellReset = new Kernel(ParticleCompute, "ResetCellBuffer", threadGroups);
+        copyBuffer = new Kernel(ParticleCompute, "CopyParticleBuffer", threadGroups);
 
         // Associate buffers with kernels
         particleRearrange.SetBuffers(new List<IBuffer>{particleIDBuffer, keysBuffer});
         buildStartEndIDs.SetBuffers(new List<IBuffer>{particleIDBuffer, cellIDBuffer, startendBuffer, cellBuffer});
-        particleUpdate.SetBuffers(new List<IBuffer>{particleBuffer});
-        optimizedParticleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleIDBuffer, startendBuffer, cellBuffer, cellIDBuffer, debug1Buffer, debug2Buffer, debug3Buffer});
+        particleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleInBuffer});
+        optimizedParticleUpdate.SetBuffers(new List<IBuffer>{particleBuffer, particleInBuffer, particleIDBuffer, startendBuffer, cellBuffer, cellIDBuffer, debug1Buffer, debug2Buffer});
         cellReset.SetBuffers(new List<IBuffer>{cellBuffer});
+        copyBuffer.SetBuffers(new List<IBuffer>{particleBuffer, particleInBuffer});
 
         // Attach buffers to kernels
         particleRearrange.InitBuffers();
@@ -222,6 +228,7 @@ public class SimulationControl : MonoBehaviour {
         particleUpdate.InitBuffers();
         optimizedParticleUpdate.InitBuffers();
         cellReset.InitBuffers();
+        copyBuffer.InitBuffers();
     }
 
 
@@ -229,6 +236,7 @@ public class SimulationControl : MonoBehaviour {
     void ResetBuffers() {
         Particle[] initArray = InitParticleArray();
         particleBuffer.Reset(particleCount, initArray);
+        particleInBuffer.Reset(particleCount, initArray);
         particleIDBuffer.Reset(particleCount);
         keysBuffer.Reset(particleCount);
         startendBuffer.Reset(cellCount);

@@ -5,6 +5,7 @@
 #pragma kernel RearrangeParticleIDs
 #pragma kernel BuildStartEndIDs
 #pragma kernel ResetCellBuffer
+#pragma kernel CopyParticleBuffer
 
 #include "noise_utility.cginc"
 #include "xorshiro.cginc"
@@ -24,7 +25,7 @@ struct Cell
 
 
 RWStructuredBuffer<Particle> particleBuffer;
-RWStructuredBuffer<float3> positionBuffer;
+RWStructuredBuffer<Particle> particleInBuffer;
 RWStructuredBuffer<Cell> cellBuffer;
 RWStructuredBuffer<uint> cellIDs;
 RWStructuredBuffer<uint> particleIDs;
@@ -39,7 +40,7 @@ RWStructuredBuffer<float4> debugBuffer3;
 void ParticleUpdate (uint3 id : SV_DispatchThreadID)
 {
     uint p_id = id.x;
-    Particle particle = particleBuffer[p_id];
+    Particle particle = particleInBuffer[p_id];
 
 
     ////////// ------ SUM NEIGHBOUR VELOCITIES ------ ////////// 
@@ -48,7 +49,7 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
     // Loop through every other particle in the simulation
     for (int i=0; i<particle_count; i++)
     {
-        Particle neighbour = particleBuffer[i];
+        Particle neighbour = particleInBuffer[i];
 
         float distance = length(neighbour.position.xyz - particle.position.xyz);
         if (distance < radius)
@@ -103,7 +104,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     // getting particle index
     uint p_id = particleIDs[id.x];
 
-    Particle particle = particleBuffer[p_id];
+    Particle particle = particleInBuffer[p_id];
     int3 cell_pos = CalcCellCoords(particle.position.xyz);
     uint cell_id = CalcCellId(cell_pos);
 
@@ -133,7 +134,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
                         // Loop through particles in neighbouring cell
                         for (uint i = start_id; i <= end_id; i++) {
                             uint neighbour_id = particleIDs[i];
-                            Particle neighbour = particleBuffer[neighbour_id];
+                            Particle neighbour = particleInBuffer[neighbour_id];
                             float distance = length(neighbour.position.xyz - particle.position.xyz);
                             if (distance < radius)
                                 summed_velocity += neighbour.velocity.xyz;
@@ -195,7 +196,6 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
 
     debugBuffer[id.x] = float4(1,1,1,1);
     debugBuffer2[id.x] = float4(average_direction, noise);
-    debugBuffer3[id.x] = float4(new_direction, noise);
 }
 
 
@@ -242,4 +242,12 @@ void BuildStartEndIDs (uint3 id : SV_DispatchThreadID)
 void ResetCellBuffer (uint3 id : SV_DispatchThreadID)
 {
     cellBuffer[id.x].count = 0;
+}
+
+
+
+[numthreads(128,1,1)]
+void CopyParticleBuffer (uint3 id : SV_DispatchThreadID)
+{
+    particleInBuffer[id.x] = particleBuffer[id.x];
 }
