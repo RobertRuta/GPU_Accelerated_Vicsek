@@ -11,14 +11,14 @@ public class SimulationControl : MonoBehaviour {
     public float boxWidth = 100f;
     public float radius = 5;
     public float speed = 5;
-    public float timeStep = 1f/60f;
     [Range(0f, 1f)] public float noise = 1.0f;
+    [SerializeField] float timeStep = 1f/60f;
 
-    //
-    public Vector2 radius_range;
+    public Vector2 radiusRange;
     public float particleDensity, particleCellDensity;
 
-    // Variables that can be moved elsewhere
+
+    // Compute shader assignment
     public ComputeShader ParticleCompute, SortShader;
 
 
@@ -27,12 +27,9 @@ public class SimulationControl : MonoBehaviour {
     float cachedBoxWidth = -1f;
     float cachedRadius = -1f;
     float cachedTime = 0f;
-    ComputeBuffer argsBuffer;
-    uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
-    
+
     // Compute buffers
-    public Buffer<Vector4> positionBuffer, velocityBuffer;
-    public Buffer<Particle> particleBuffer;
+    public Buffer<Particle> particleBuffer, particleInBuffer;
     Buffer<Vector4> debug1Buffer, debug2Buffer, debug3Buffer;
     Buffer<uint> particleIDBuffer, cellIDBuffer, keysBuffer;
     Buffer<Vector2Int> startendBuffer;
@@ -50,14 +47,13 @@ public class SimulationControl : MonoBehaviour {
 
     // Simulation space and grid variables
     [SerializeField]
-    Vector2 box_range;
+    Vector2 boxRange;
     [SerializeField]
     Vector3 box;
     [SerializeField]
     Vector3Int grid_dims;
     [SerializeField]
     public int cellCount;
-    int frameCounter = 0;
     
 
     // Third-party Sorter - Emmet GITHUB
@@ -78,10 +74,9 @@ public class SimulationControl : MonoBehaviour {
         sorter = new Sorter(SortShader);
         visualiser = GetComponent<Visualiser>();
 
-
         max_cell_count = (int)(MAX_BUFFER_BYTES / 8);
 
-        UpdateSimParams();
+        UpdateSimulationParameters();
         SetupBuffers();
         SetupKernels();
     }
@@ -90,18 +85,16 @@ public class SimulationControl : MonoBehaviour {
     ///// ----- RUN ONCE EVERY FRAME ----- /////
 
     void Update() {
-        if (cachedParticleCount != particleCount || cachedBoxWidth != boxWidth || cachedRadius != radius) {
-            if ((Time.time - cachedTime) > 1f) {
-                UpdateSimParams();
-                
-                // Reset Sorter
-                if (sorter != null)
-                    sorter.Dispose();
-                sorter = new Sorter(SortShader);
-                
-                ResetBuffers();
-                SetupKernels();
-            }
+        if ((cachedParticleCount != particleCount || cachedBoxWidth != boxWidth || cachedRadius != radius) && ((Time.time - cachedTime) > 1f)) {
+            UpdateSimulationParameters();
+            
+            // Reset Sorter
+            if (sorter != null)
+                sorter.Dispose();
+            sorter = new Sorter(SortShader);
+            
+            ResetBuffers();
+            SetupKernels();
         }
 
         UpdateComputeShaderVariables();
@@ -123,16 +116,35 @@ public class SimulationControl : MonoBehaviour {
     }
 
 
+    ///// ----- RUNS ON APPLICATION QUIT / SIM GAMEOBJECT DEACTIVATION ----- /////
+
+    void OnDisable() {
+        particleBuffer.Dispose();
+        particleIDBuffer.Dispose();
+        cellIDBuffer.Dispose();
+        startendBuffer.Dispose();
+        cellBuffer.Dispose();
+        keysBuffer.Dispose();
+        debug1Buffer.Dispose();
+        debug2Buffer.Dispose();
+        debug3Buffer.Dispose();
+        if (sorter != null)
+            sorter.Dispose();
+    }
+
+
+
     ///// ----- HELPER FUNCTIONS ----- /////
 
-    // Recalculate simulation parameters
-    void UpdateSimParams()
-    {
 
+    // Recalculate simulation parameters
+    void UpdateSimulationParameters()
+    {
         // Set particle count
         if (particleCount != cachedParticleCount)
             particleCount = Mathf.NextPowerOfTwo(particleCount) >> 1;
-            
+        
+        // Update number of thread groups based on new particleCount
         groupCount = Mathf.CeilToInt((float)particleCount / 128);
         threadGroups = new Vector3Int(groupCount, 1, 1);
 
@@ -140,6 +152,9 @@ public class SimulationControl : MonoBehaviour {
         box = new Vector3(boxWidth, boxWidth, boxWidth);
         // Recalculate box vector - box must be the same size as the grid boundaries
         box = new Vector3((int)(box.x/radius) * radius, (int)(box.y/radius) * radius, (int)(box.z/radius) * radius);
+
+        RecalcBoxRange();
+        RecalcRadiusRange();
 
         // Calculate cell count
         grid_dims = new Vector3Int((int)(box.x/radius), (int)(box.y/radius), (int)(box.z/radius));
@@ -155,6 +170,7 @@ public class SimulationControl : MonoBehaviour {
         cachedTime = Time.time;
     }
 
+
     // Create array of random particle positions and velocities
     Particle[] InitParticleArray() {
         Particle[] particleArray = new Particle[particleCount];
@@ -164,6 +180,7 @@ public class SimulationControl : MonoBehaviour {
         }
         return particleArray;
     }
+
 
     // Initialise buffers
     void SetupBuffers() {
@@ -178,6 +195,7 @@ public class SimulationControl : MonoBehaviour {
         debug2Buffer = new Buffer<Vector4>(particleCount, "debugBuffer2");
         debug3Buffer = new Buffer<Vector4>(particleCount, "debugBuffer3");
     }
+
 
     // Initialise Compute Kernels
     void SetupKernels() {
@@ -203,6 +221,7 @@ public class SimulationControl : MonoBehaviour {
         cellReset.InitBuffers();
     }
 
+
     // Dispose buffers and create again
     void ResetBuffers() {
         Particle[] initArray = InitParticleArray();
@@ -217,6 +236,7 @@ public class SimulationControl : MonoBehaviour {
         debug3Buffer.Reset(particleCount);
     }
 
+
     // Send variable values from CPU to GPU
     void UpdateComputeShaderVariables() {
         // Update compute shader variables
@@ -229,21 +249,21 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetFloat("noise", noise);
         ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
         ParticleCompute.SetInts("grid_dims", new [] {grid_dims.x, grid_dims.y, grid_dims.z});
-        ParticleCompute.SetInt("frame_counter", frameCounter);
     }
 
-    // Runs on application quit
-    void OnDisable() {
-        particleBuffer.Dispose();
-        particleIDBuffer.Dispose();
-        cellIDBuffer.Dispose();
-        startendBuffer.Dispose();
-        cellBuffer.Dispose();
-        keysBuffer.Dispose();
-        debug1Buffer.Dispose();
-        debug2Buffer.Dispose();
-        debug3Buffer.Dispose();
-        if (sorter != null)
-            sorter.Dispose();
+
+    void RecalcRadiusRange(){
+        float MAX = 20f;
+        float MIN = 0.5f;
+        radiusRange.x = Mathf.Clamp(boxRange.y / Mathf.Pow((float)max_cell_count, 1f/3f), MIN, MAX);
+        radiusRange.y = Mathf.Clamp(boxRange.y, MIN, MAX);   
+    }
+
+
+    void RecalcBoxRange(){
+        float MAX = 100f;
+        float MIN = 1f;
+        boxRange.x = MIN;
+        boxRange.y = Mathf.Clamp((Mathf.Pow((float)max_cell_count, 1f/3f) * radius), MIN, MAX);
     }
 }

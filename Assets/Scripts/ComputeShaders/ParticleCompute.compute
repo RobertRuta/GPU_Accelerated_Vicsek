@@ -129,11 +129,9 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
                 {
                     uint start_id = startendIDs[neighbour_cell_id].x;
                     uint end_id = startendIDs[neighbour_cell_id].y;
-                    if (end_id > start_id)
-                    {
+                    if (end_id > start_id) {
                         // Loop through particles in neighbouring cell
-                        for (uint i = start_id; i <= end_id; i++)
-                        {
+                        for (uint i = start_id; i <= end_id; i++) {
                             uint neighbour_id = particleIDs[i];
                             Particle neighbour = particleBuffer[neighbour_id];
                             float distance = length(neighbour.position.xyz - particle.position.xyz);
@@ -167,7 +165,7 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     float3 other_vector = GetOtherVector(average_direction);
     float3 normal_vector = cross(other_vector, average_direction);
     float phi = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
-    float theta = ((float)time_particle_seed / (float)0xffffffff * 2 - 1) * PI * noise; // Random angle
+    float theta = (float)time_particle_seed / (float)0xffffffff * PI * noise; // Random angle
 
     float3 new_direction = RodriguezRot(average_direction, normal_vector, theta);
     new_direction = RodriguezRot(new_direction, average_direction, phi);

@@ -25,7 +25,7 @@ public class GUIControl : MonoBehaviour {
         sim.radius = AddUIElement("Neighbour Radius: ", sim.radius, "m", 0.5f, 10f);
         sim.speed = AddUIElement("Speed: ", sim.speed, "m/s", 0.1f, 100f);
         sim.noise = AddUIElement("Noise: ", sim.noise, "", 0.0f, 1f);
-        vis.particleSize = AddUIElement("Particle Size: ", vis.particleSize, "", 0.5f, 5f);
+        vis.particleSize = AddUIElement("Particle Size: ", vis.particleSize, "", 0.1f, 10f);
 
         GUI.Label(new Rect(800, 15, 200, 60), "Initial Particle Density \n" + particleDensity.ToString("F3") + " particles/m^3");
         GUI.Label(new Rect(800, 75, 200, 60), "Initial Particle Cell Density \n" + particleCellDensity.ToString("F3") + " particles/cell");
