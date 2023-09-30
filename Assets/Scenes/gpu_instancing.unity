@@ -365,6 +365,8 @@ GameObject:
   - component: {fileID: 895109123}
   - component: {fileID: 895109125}
   - component: {fileID: 895109128}
+  - component: {fileID: 895109130}
+  - component: {fileID: 895109129}
   m_Layer: 0
   m_Name: sim
   m_TagString: Untagged
@@ -403,18 +405,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f4a570d99c694b4a8bd5846219cccbd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleCount: 100000
+  particleCount: 524289
   boxWidth: 100
-  radius: 5
-  speed: 5
+  radius: 3
+  speed: 15
+  noise: 0.15
   timeStep: 0.016666668
-  noise: 0
-  radius_range: {x: 0, y: 0}
+  radiusRange: {x: 0, y: 0}
   particleDensity: 0
   particleCellDensity: 0
   ParticleCompute: {fileID: 7200000, guid: d0fe8b7542cd3674c910fcb5b21c1f6a, type: 3}
   SortShader: {fileID: 7200000, guid: 4aca9ca9732bed94092cd70359a4508f, type: 3}
-  box_range: {x: 0, y: 0}
+  resetToggle: 0
+  boxRange: {x: 0, y: 0}
   box: {x: 0, y: 0, z: 0}
   grid_dims: {x: 0, y: 0, z: 0}
   cellCount: 0
@@ -434,8 +437,43 @@ MonoBehaviour:
   particleMaterial: {fileID: 2100000, guid: c203a09b5125471448363d6d4116495a, type: 2}
   particleMesh: {fileID: 3613567641014311022, guid: 23a035a5bd157ec43a1125f6602012da, type: 3}
   subMeshIndex: 0
-  particleSize: 1
+  particleSize: 0.2
   colorIntensity: 5
+  enableHeading: 1
+--- !u!114 &895109129
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 895109121}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10be9078949895a47ba2f8bda52bc3cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &895109130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 895109121}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a75e955fcdda7794884d66ff3b84daeb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  updateToggle: 1
+  updateDebug: 0
+  head: 10
+  foot: 10
+  displayDebug: 0
+  displayAll: 0
+  save: 0
+  saveOnQuit: 0
+  saveToggle: 0
+  overwrite: 0
 --- !u!1 &1299154866
 GameObject:
   m_ObjectHideFlags: 0
