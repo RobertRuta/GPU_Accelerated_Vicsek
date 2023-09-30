@@ -33,9 +33,9 @@ public class DebugControl : MonoBehaviour {
         if (displayDebug == true) {
             if (updateToggle)
                 UpdateDebugArrays();
-            debugArray1.Print(10, 10, "debug1");
-            debugArray2.Print(10, 10, "debug2");
-            debugArray3.Print(10, 10, "debug3");
+            debugArray1.Print(head, foot, "debug1");
+            debugArray2.Print(head, foot, "debug2");
+            debugArray3.Print(head, foot, "debug3");
             displayDebug = false;
         }
 
