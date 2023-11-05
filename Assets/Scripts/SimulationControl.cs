@@ -58,7 +58,7 @@ public class SimulationControl : MonoBehaviour {
     public int cellCount;
     
 
-    // Third-party Sorter - Emmet GITHUB
+    // Third-party Bitonic Sorter - Emmet GITHUB
     Sorter sorter;
     public bool optimized;
 
