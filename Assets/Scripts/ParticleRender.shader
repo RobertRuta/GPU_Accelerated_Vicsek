@@ -1,4 +1,4 @@
-      Shader "Instanced/InstancedParticleShader" {
+Shader "Instanced/InstancedParticleShader" {
     Properties {
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _ColorIntensity ("Color Intensity", Range(2, 10)) = 1
