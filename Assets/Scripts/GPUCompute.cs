@@ -88,12 +88,14 @@ namespace GPUCompute
         public void Reset(int length) {
             Dispose();
             buffer = new ComputeBuffer(length, Stride);
+            Length = length;
         }
 
         public void Reset(int length, T[] initArray) {
             Dispose();
             buffer = new ComputeBuffer(length, Stride);
             buffer.SetData(initArray);
+            Length = length;
         }
 
         public T[] ReturnData() {
