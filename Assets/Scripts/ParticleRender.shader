@@ -2,7 +2,7 @@ Shader "Instanced/InstancedParticleShader" {
     Properties {
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _ColorIntensity ("Color Intensity", Range(2, 10)) = 1
-        _ParticleSize ("Particle Size", Range(0.1, 10)) = 1
+        _ParticleSize ("Particle Size", Range(10, 1000)) = 1
     }
     SubShader {
 

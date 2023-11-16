@@ -1,8 +1,0 @@
-13/08/2023 - 17:24
-    The sorted seems to sort some values incorrectly (very rarely). The singular case 
-    I have spotted features a particle that is particularly close to the cell boundary,
-    and it is sorted as if the particle is on the other side of the boundary. Perhaps this 
-    hints at some sort of rounding error?
-    This could also, however be a result of the sorter and the particle update running 
-    at the same time. I'm still not fully clear on how different dispatches are run...
-    whether concurrently or sequentially.

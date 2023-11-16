@@ -6,10 +6,11 @@ using UnityEngine.EventSystems;
 public class SimulationCamera : MonoBehaviour
 {
     Vector3 target; // The target object to face
-    public float xSpeed = 120.0f; // Horizontal rotation speed
-    public float ySpeed = 120.0f; // Vertical rotation speed
+    public float xSpeed = 1f; // Horizontal rotation speed
+    public float ySpeed = 1f; // Vertical rotation speed
     public float zoomSpeed = 100f;
     public float inertialDamping = 5.0f;
+    public bool camControlOn = true;
 
     private float x = 0.0f;
     private float y = 0.0f;
@@ -40,7 +41,7 @@ public class SimulationCamera : MonoBehaviour
     void Update()
     {
         // Check if interacting with an IMGUI element
-        if (GUIUtility.hotControl != 0)
+        if (GUIUtility.hotControl != 0 | !camControlOn)
         {
             return;
         }
@@ -59,7 +60,7 @@ public class SimulationCamera : MonoBehaviour
             dy = Input.GetAxis("Mouse Y") * ySpeed;           
         }
         // When LMB let go, give the rotation some inertia
-        else{
+        else {
             dx = Mathf.Lerp(dx, 0, inertialDamping);
             dy = Mathf.Lerp(dy, 0, inertialDamping);
         }

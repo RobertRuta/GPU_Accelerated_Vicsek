@@ -55,4 +55,12 @@ public class Visualiser : MonoBehaviour
     void OnDisable() {
         argsBuffer.Dispose();
     }
+
+
+    public void LoadMesh(string meshName) {
+        print("Loading mesh: " + meshName);
+        string meshPath = "Meshes/" + meshName;
+        Mesh loadedMesh = Resources.Load<Mesh>(meshPath);
+        particleMesh = loadedMesh;
+    }
 }

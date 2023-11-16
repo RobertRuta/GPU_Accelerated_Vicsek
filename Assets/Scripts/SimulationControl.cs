@@ -17,7 +17,6 @@ public class SimulationControl : MonoBehaviour {
     public Vector2 radiusRange;
     public float particleDensity, particleCellDensity;
 
-
     // Compute shader assignment
     public ComputeShader ParticleCompute, SortShader;
 
@@ -68,6 +67,8 @@ public class SimulationControl : MonoBehaviour {
 
     Visualiser visualiser;
 
+    UIControl UI;
+
 
     ///// ----- RUN ON FIRST FRAME ----- /////
 
@@ -75,6 +76,7 @@ public class SimulationControl : MonoBehaviour {
 
         sorter = new Sorter(SortShader);
         visualiser = GetComponent<Visualiser>();
+        UI = GetComponent<UIControl>();
 
         max_cell_count = (int)(MAX_BUFFER_BYTES / 8);
 
@@ -103,20 +105,22 @@ public class SimulationControl : MonoBehaviour {
 
         UpdateComputeShaderVariables();
 
-        // Each particle only searches neighbouring cells
-        if (optimized) {
-            sorter.Sort(keysBuffer.buffer, cellIDBuffer.buffer);
-            particleRearrange.InitBuffers();
-            particleRearrange.Run();
-            buildStartEndIDs.Run();
-            optimizedParticleUpdate.Run();
+        if (!UI.isPaused) {
+            // Each particle only searches neighbouring cells
+            if (optimized) {
+                sorter.Sort(keysBuffer.buffer, cellIDBuffer.buffer);
+                particleRearrange.InitBuffers();
+                particleRearrange.Run();
+                buildStartEndIDs.Run();
+                optimizedParticleUpdate.Run();
+            }
+            // O(N^2) computational complexity
+            else {
+                particleUpdate.Run();
+            }
+            
+            copyBuffer.Run();
         }
-        // O(N^2) computational complexity
-        else {
-            particleUpdate.Run();
-        }
-        
-        copyBuffer.Run();
 
         visualiser.RenderParticles(particleBuffer.buffer);
     }

@@ -1,6 +1,6 @@
 # GPU_Accelerated_Vicsek
 
-This repository is the home of a 3D Vicsek simulation made in Unity with the help of compute shaders. The Vicsek algorithm is a very simple set of rules that serve to generate collective bird-like flocking motion.
+This repository is the home of a 3D Vicsek simulation made in Unity with the help of compute shaders. The Vicsek algorithm is a very simple set of rules that serve to generate a collective bird-like flocking motion.
 
 The algorithm is as follows:
 

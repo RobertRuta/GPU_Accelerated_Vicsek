@@ -1,4 +1,0 @@
-18-07-2023 | 12:07
-    The optimized alignment is evidently not working correctly, as there is visual difference in the dynamics of the agents clusters between the primitive unoptimized version and the optimized version. In the optimized version, the swarms seem to be rigid, and changes in direction of agents seem to be immediate instead of smooth. This is especially noticeable when noise is set to 0.
-    This indicates an issue with the optimized vicsek simulation. The exact issue is not yet known.
-
