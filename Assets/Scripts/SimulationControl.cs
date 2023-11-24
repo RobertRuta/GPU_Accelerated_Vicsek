@@ -73,6 +73,7 @@ public class SimulationControl : MonoBehaviour {
     ///// ----- RUN ON FIRST FRAME ----- /////
 
     void Start() {
+        Application.targetFrameRate = 60;
 
         sorter = new Sorter(SortShader);
         visualiser = GetComponent<Visualiser>();
