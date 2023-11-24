@@ -12,7 +12,7 @@ public class SimulationControl : MonoBehaviour {
     public float radius = 5;
     public float speed = 5;
     [Range(0f, 1f)] public float noise = 1.0f;
-    [SerializeField] float timeStep = 1f/60f;
+    // [SerializeField] float timeStep = 1f/60f;
 
     public Vector2 radiusRange;
     public float particleDensity, particleCellDensity;
@@ -259,7 +259,7 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetFloats("box", new [] {box.x, box.y, box.z});
         ParticleCompute.SetFloat("radius", radius);
         ParticleCompute.SetFloat("speed", speed);
-        ParticleCompute.SetFloat("dt", timeStep);
+        ParticleCompute.SetFloat("dt", Time.deltaTime);
         ParticleCompute.SetFloat("time", Time.time);
         ParticleCompute.SetFloat("noise", noise);
         ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
