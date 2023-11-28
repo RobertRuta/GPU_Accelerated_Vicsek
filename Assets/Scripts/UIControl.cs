@@ -13,7 +13,7 @@ public class UIControl : MonoBehaviour
     SimulationCamera cam;
     public int infoFrequency = 60;
     public bool isPaused = false;
-    public GameObject pauseMenu, optionMenu, hideParamButton, paramMenu, infoMenu;
+    public GameObject pauseMenu, optionMenu, hideParamButton, paramMenu, infoMenu, paramCover;
     public Slider colourIntensitySlider;
     public Slider mouseXSlider, mouseYSlider, rotDampingSlider;
     public TMP_Dropdown meshDropdown, fpsDropdown;
@@ -21,7 +21,10 @@ public class UIControl : MonoBehaviour
     public Slider radiusSlider, noiseSlider, particleSizeSlider, speedSlider;
 
     public TMP_Text fpsValue, cellCountValue, 
-                    xBoxValue, yBoxValue, zBoxValue, xGridValue, yGridValue, zGridValue, orderValue, uniformityValue;
+                    xBoxValue, yBoxValue, zBoxValue, xGridValue, yGridValue, zGridValue, orderValue, uniformityValue,
+                    densityValue, volumeValue;
+    public bool toggleOrder;
+    private GameObject[] toolTips;
     private float fps, deltaTime;
     private int frameCounter = 0;
 
@@ -34,6 +37,11 @@ public class UIControl : MonoBehaviour
         cam = GameObject.Find("Main Camera").GetComponent<SimulationCamera>();
         pauseMenu.SetActive(false);
         optionMenu.SetActive(false);
+        paramCover.SetActive(false);
+        toolTips = GameObject.FindGameObjectsWithTag("ToolTip");
+        ToolTipInactive();
+
+        toggleOrder = true;
 
         particleCountValue.text = sim.particleCount.ToString() + " particles";
 
@@ -62,7 +70,6 @@ public class UIControl : MonoBehaviour
             cam.camControlOn = true;
 
         if (Input.GetKeyDown("escape")) {
-            
             if (pauseMenu.activeSelf) {
                 pauseMenu.SetActive(false);
                 paramMenu.SetActive(true);
@@ -77,6 +84,7 @@ public class UIControl : MonoBehaviour
             }
 
             else {
+                ToolTipInactive();
                 paramMenu.SetActive(false);
                 infoMenu.SetActive(false);
                 pauseMenu.SetActive(true);
@@ -138,10 +146,12 @@ public class UIControl : MonoBehaviour
         if (selectedFPS == "inf") {
             sim.targetFPS = int.MaxValue;
             sim.SetTargetFPS();
+            QualitySettings.vSyncCount = 0;
         }
         else if (selectedFPS != sim.targetFPS.ToString()) {
             sim.targetFPS = int.Parse(selectedFPS);
             sim.SetTargetFPS();
+            QualitySettings.vSyncCount = 1;
         }
     }
 
@@ -176,8 +186,13 @@ public class UIControl : MonoBehaviour
         yGridValue.text = sim.grid_dims.y.ToString();
         zGridValue.text = sim.grid_dims.z.ToString();
 
-        Particle[] particles = sim.particleBuffer.ReturnData();
-        sim.ComputeOrderAndUniformityParameters(particles);
+        volumeValue.text = (sim.box.x * sim.box.y * sim.box.z).ToString("F0");
+        densityValue.text = sim.particleDensity.ToString("F2");
+
+        if (toggleOrder) {
+            Particle[] particles = sim.particleBuffer.ReturnData();
+            sim.ComputeOrderAndUniformityParameters(particles);
+        }
         orderValue.text = (sim.orderParameter * 100).ToString("F1");
         uniformityValue.text = sim.uniformityParameter.ToString("F3");
     }
@@ -199,5 +214,28 @@ public class UIControl : MonoBehaviour
 
     public void PauseSim() {
         isPaused = !isPaused;
+    }
+
+    public void ToolTipInactive() {
+        foreach (GameObject toolTip in toolTips)
+            toolTip.SetActive(false);
+    }
+
+    public void ToolTipActive() {
+        foreach (GameObject toolTip in toolTips)
+            toolTip.SetActive(true);
+    }
+
+    public void ToolTipToggle() {
+        foreach (GameObject toolTip in toolTips)
+            toolTip.SetActive(!toolTip.activeSelf);
+    }
+
+    public void OrderToggle() {
+        toggleOrder = !toggleOrder;
+    }
+
+    public void CoverToggle() {
+        paramCover.SetActive(!paramCover.activeSelf);
     }
 }
