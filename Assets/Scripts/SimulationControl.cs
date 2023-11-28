@@ -3,6 +3,7 @@ using BufferSorter;
 using vicsek;
 using GPUCompute;
 using System.Collections.Generic;
+using System;
 
 public class SimulationControl : MonoBehaviour {
 
@@ -13,6 +14,9 @@ public class SimulationControl : MonoBehaviour {
     public float speed = 5;
     [Range(0f, 1f)] public float noise = 1.0f;
     // [SerializeField] float timeStep = 1f/60f;
+
+    // NON-MODIFIABLE PARAMETERS
+    public double orderParameter = 0.0, uniformityParameter = 0.0;
 
     public Vector2 radiusRange;
     public float particleDensity, particleCellDensity;
@@ -177,8 +181,8 @@ public class SimulationControl : MonoBehaviour {
         grid_dims = new Vector3Int((int)(box.x/radius), (int)(box.y/radius), (int)(box.z/radius));
         cellCount = grid_dims.x*grid_dims.y*grid_dims.z;
 
-        particleDensity = particleCount / (boxWidth*boxWidth*boxWidth);
-        particleCellDensity = particleCount / cellCount;
+        particleDensity = (float)particleCount / (box.x*box.y*box.z);
+        particleCellDensity = (float)particleCount / (float)cellCount;
 
         // Caching simulation parameters
         cachedParticleCount = particleCount;
@@ -192,8 +196,8 @@ public class SimulationControl : MonoBehaviour {
     Particle[] InitParticleArray() {
         Particle[] particleArray = new Particle[particleCount];
         for (int i = 0; i < particleCount; i++) {
-            particleArray[i].position = new Vector4(Random.Range(0f, boxWidth), Random.Range(0f, boxWidth), Random.Range(0f, boxWidth), 10f);
-            particleArray[i].velocity = Random.onUnitSphere * speed;
+            particleArray[i].position = new Vector4(UnityEngine.Random.Range(0f, boxWidth), UnityEngine.Random.Range(0f, boxWidth), UnityEngine.Random.Range(0f, boxWidth), 10f);
+            particleArray[i].velocity = UnityEngine.Random.onUnitSphere * speed;
         }
         return particleArray;
     }
@@ -286,5 +290,26 @@ public class SimulationControl : MonoBehaviour {
         float MIN = 1f;
         boxRange.x = MIN;
         boxRange.y = Mathf.Clamp((Mathf.Pow((float)max_cell_count, 1f/3f) * radius), MIN, MAX);
+    }
+
+
+    public void ComputeOrderAndUniformityParameters(Particle[] particles){
+        Vector3 sumVelocity = Vector3.zero;
+
+        double expectedNeighbourCount = particleDensity * 4f/3f * Math.PI * Math.Pow(radius, 3);
+        double sqDevNeighbourCount = 0.0f;
+        double maxSqDevNeighbourCount = 0.0f;
+        foreach (Particle particle in particles)
+        {
+            sumVelocity += new Vector3(particle.velocity.x, particle.velocity.y, particle.velocity.z);
+            sqDevNeighbourCount += Math.Pow(particle.position.w - expectedNeighbourCount, 2);
+            maxSqDevNeighbourCount += Math.Pow(particleCount - 1 - expectedNeighbourCount, 2);
+        }
+        
+        double stdevNeighbourCounts = Math.Sqrt(sqDevNeighbourCount / particleCount);
+        double maxStdevNeighbourCounts = Math.Sqrt(maxSqDevNeighbourCount / particleCount);
+
+        orderParameter = sumVelocity.magnitude / particles.Length / speed;
+        uniformityParameter = 1 - Math.Log10((double)stdevNeighbourCounts / (double)maxStdevNeighbourCounts);
     }
 }

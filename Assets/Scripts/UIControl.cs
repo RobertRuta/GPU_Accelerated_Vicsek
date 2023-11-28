@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using vicsek;
 using System;
 
 public class UIControl : MonoBehaviour
@@ -20,7 +21,7 @@ public class UIControl : MonoBehaviour
     public Slider radiusSlider, noiseSlider, particleSizeSlider, speedSlider;
 
     public TMP_Text fpsValue, cellCountValue, 
-                    xBoxValue, yBoxValue, zBoxValue, xGridValue, yGridValue, zGridValue, orderValue, clumpingValue;
+                    xBoxValue, yBoxValue, zBoxValue, xGridValue, yGridValue, zGridValue, orderValue, uniformityValue;
     private float fps, deltaTime;
     private int frameCounter = 0;
 
@@ -175,8 +176,10 @@ public class UIControl : MonoBehaviour
         yGridValue.text = sim.grid_dims.y.ToString();
         zGridValue.text = sim.grid_dims.z.ToString();
 
-        // orderValue.text = sim.order.ToString();
-        // clumpingValue.text = sim.clumping.ToString();
+        Particle[] particles = sim.particleBuffer.ReturnData();
+        sim.ComputeOrderAndUniformityParameters(particles);
+        orderValue.text = (sim.orderParameter * 100).ToString("F1");
+        uniformityValue.text = sim.uniformityParameter.ToString("F3");
     }
 
     public void IncrementUpParticleCount() {
