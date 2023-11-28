@@ -60,6 +60,7 @@ public class SimulationControl : MonoBehaviour {
     // Third-party Bitonic Sorter - Emmet GITHUB
     Sorter sorter;
     public bool optimized;
+    public int targetFPS = 60;
 
     const uint MAX_BUFFER_BYTES = 2147483648;
     int max_cell_count;
@@ -73,7 +74,7 @@ public class SimulationControl : MonoBehaviour {
     ///// ----- RUN ON FIRST FRAME ----- /////
 
     void Start() {
-        Application.targetFrameRate = 60;
+        Application.targetFrameRate = targetFPS;
 
         sorter = new Sorter(SortShader);
         visualiser = GetComponent<Visualiser>();
@@ -148,6 +149,10 @@ public class SimulationControl : MonoBehaviour {
 
     ///// ----- HELPER FUNCTIONS ----- /////
 
+    // Set target frame rate
+    public void SetTargetFPS() {
+        Application.targetFrameRate = targetFPS;
+    }
 
     // Recalculate simulation parameters
     void UpdateSimulationParameters()
