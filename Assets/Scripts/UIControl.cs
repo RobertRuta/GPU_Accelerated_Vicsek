@@ -10,6 +10,7 @@ public class UIControl : MonoBehaviour
     SimulationControl sim;
     Visualiser vis;
     SimulationCamera cam;
+    public int infoFrequency = 60;
     public bool isPaused = false;
     public GameObject pauseMenu, optionMenu, hideParamButton, paramMenu;
     public Slider colourIntensitySlider;
@@ -17,6 +18,10 @@ public class UIControl : MonoBehaviour
     public TMP_Dropdown meshDropdown;
     public TMP_Text radiusValue, noiseValue, particleSizeValue, particleCountValue, speedValue;
     public Slider radiusSlider, noiseSlider, particleSizeSlider, speedSlider;
+
+    public TMP_Text fpsValue, cellCountValue, xGridValue, yGridValue, zGridValue, orderValue, clumpingValue;
+    private float fps, deltaTime;
+    private int frameCounter = 0;
 
 
     // Start is called before the first frame update
@@ -46,6 +51,9 @@ public class UIControl : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
+        fps = 1.0f / deltaTime;
+
         if (pauseMenu.activeSelf | optionMenu.activeSelf)
             cam.camControlOn = false;
         else
@@ -71,6 +79,10 @@ public class UIControl : MonoBehaviour
                 isPaused = true;
             }
         }
+        
+        if ((frameCounter % infoFrequency) == 0)
+            InfoUIHandler();
+        frameCounter += 1;
     }
 
     public void ResumeSimulation() {
@@ -124,6 +136,20 @@ public class UIControl : MonoBehaviour
 
         sim.speed = speedSlider.value;
         speedValue.text = sim.speed.ToString() + "m/s";
+    }
+
+
+    public void InfoUIHandler() {
+        // sim.particleCount = radiusSlider.value;
+        fpsValue.text = fps.ToString("F0");
+
+        cellCountValue.text = sim.cellCount.ToString();
+        xGridValue.text = sim.grid_dims.x.ToString();
+        yGridValue.text = sim.grid_dims.y.ToString();
+        zGridValue.text = sim.grid_dims.z.ToString();
+
+        // orderValue.text = sim.order.ToString();
+        // clumpingValue.text = sim.clumping.ToString();
     }
 
     public void IncrementUpParticleCount() {

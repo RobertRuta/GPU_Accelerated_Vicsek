@@ -52,7 +52,7 @@ public class SimulationControl : MonoBehaviour {
     [SerializeField]
     Vector3 box;
     [SerializeField]
-    Vector3Int grid_dims;
+    public Vector3Int grid_dims;
     [SerializeField]
     public int cellCount;
     
