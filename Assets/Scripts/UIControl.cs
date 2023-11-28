@@ -12,10 +12,10 @@ public class UIControl : MonoBehaviour
     SimulationCamera cam;
     public int infoFrequency = 60;
     public bool isPaused = false;
-    public GameObject pauseMenu, optionMenu, hideParamButton, paramMenu;
+    public GameObject pauseMenu, optionMenu, hideParamButton, paramMenu, infoMenu;
     public Slider colourIntensitySlider;
     public Slider mouseXSlider, mouseYSlider, rotDampingSlider;
-    public TMP_Dropdown meshDropdown;
+    public TMP_Dropdown meshDropdown, fpsDropdown;
     public TMP_Text radiusValue, noiseValue, particleSizeValue, particleCountValue, speedValue;
     public Slider radiusSlider, noiseSlider, particleSizeSlider, speedSlider;
 
@@ -64,6 +64,7 @@ public class UIControl : MonoBehaviour
             if (pauseMenu.activeSelf) {
                 pauseMenu.SetActive(false);
                 paramMenu.SetActive(true);
+                infoMenu.SetActive(true);
                 isPaused = false;
             }
 
@@ -75,6 +76,7 @@ public class UIControl : MonoBehaviour
 
             else {
                 paramMenu.SetActive(false);
+                infoMenu.SetActive(false);
                 pauseMenu.SetActive(true);
                 isPaused = true;
             }
@@ -112,13 +114,33 @@ public class UIControl : MonoBehaviour
         cam.inertialDamping = rotDampingSlider.value;
     }
 
+    public void ToggleOptimization() {
+        sim.optimized = !sim.optimized;
+    }
+
+    public void ToggleHeading() {
+        vis.enableHeading = !vis.enableHeading;
+    }
+
     public void DropdownUpdate() { 
         string selectedMesh = meshDropdown.options[meshDropdown.value].text;
 
         if (selectedMesh != vis.particleMesh.name) {
             vis.LoadMesh(selectedMesh);
         }
-        print(meshDropdown.options[meshDropdown.value].text);
+    }
+
+    public void FPSDropdownUpdate() { 
+        string selectedFPS = fpsDropdown.options[fpsDropdown.value].text;
+
+        if (selectedFPS == "inf") {
+            sim.targetFPS = int.MaxValue;
+            sim.SetTargetFPS();
+        }
+        else if (selectedFPS != sim.targetFPS.ToString()) {
+            sim.targetFPS = int.Parse(selectedFPS);
+            sim.SetTargetFPS();
+        }
     }
 
     public void ParamUIHandler() {
@@ -165,5 +187,9 @@ public class UIControl : MonoBehaviour
 
     public void ResetSim() {
         sim.resetToggle = true;
+    }
+
+    public void PauseSim() {
+        isPaused = !isPaused;
     }
 }
