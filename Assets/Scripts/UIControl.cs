@@ -19,7 +19,8 @@ public class UIControl : MonoBehaviour
     public TMP_Text radiusValue, noiseValue, particleSizeValue, particleCountValue, speedValue;
     public Slider radiusSlider, noiseSlider, particleSizeSlider, speedSlider;
 
-    public TMP_Text fpsValue, cellCountValue, xGridValue, yGridValue, zGridValue, orderValue, clumpingValue;
+    public TMP_Text fpsValue, cellCountValue, 
+                    xBoxValue, yBoxValue, zBoxValue, xGridValue, yGridValue, zGridValue, orderValue, clumpingValue;
     private float fps, deltaTime;
     private int frameCounter = 0;
 
@@ -164,6 +165,10 @@ public class UIControl : MonoBehaviour
     public void InfoUIHandler() {
         // sim.particleCount = radiusSlider.value;
         fpsValue.text = fps.ToString("F0");
+        
+        xBoxValue.text = sim.box.x.ToString("F1");
+        yBoxValue.text = sim.box.y.ToString("F1");
+        zBoxValue.text = sim.box.z.ToString("F1");
 
         cellCountValue.text = sim.cellCount.ToString();
         xGridValue.text = sim.grid_dims.x.ToString();

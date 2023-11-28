@@ -50,7 +50,7 @@ public class SimulationControl : MonoBehaviour {
     [SerializeField]
     Vector2 boxRange;
     [SerializeField]
-    Vector3 box;
+    public Vector3 box;
     [SerializeField]
     public Vector3Int grid_dims;
     [SerializeField]
