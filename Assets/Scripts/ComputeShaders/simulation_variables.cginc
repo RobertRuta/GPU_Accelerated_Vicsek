@@ -10,3 +10,4 @@ float3 box;
 uint3 grid_dims;
 float particleSize;
 bool perturb;
+float particleDensity;

@@ -65,16 +65,16 @@ void ParticleUpdate (uint3 id : SV_DispatchThreadID)
     ////////// ------ RANDOM NUMBER GENERATION ------ //////////
 
     uint time_seed = (uint)(time*1000);
-    uint time_seed_2 = MurmurHash3(time_seed);
+    uint time_seed2 = MurmurHash3(time_seed);
     uint particle_seed = MurmurHash3(p_id+1);
     uint particle_seed2 = MurmurHash3(particle_seed);
-    uint time_particle_seed = MurmurHash3(particle_seed + time_seed_2);
+    uint time_particle_seed = MurmurHash3(particle_seed + time_seed2);
     uint time_particle_seed2 = MurmurHash3(particle_seed2 + time_seed);
     
 
     ////////// ------ VELOCITY PERTURBATION ------ //////////
 
-    float3 random_vector = hash(uint3(time_seed_2, particle_seed, time_particle_seed));
+    float3 random_vector = hash(uint3(time_seed2, particle_seed, time_particle_seed));
     float3 other_vector = GetOtherVector(average_direction);
     float3 normal_vector = cross(other_vector, average_direction);
     float phi = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
@@ -158,17 +158,17 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     ////////// ------ RANDOM NUMBER GENERATION ------ //////////
 
     uint time_seed = (uint)(time*1000);
-    uint time_seed_2 = MurmurHash3(time_seed);
+    uint time_seed2 = MurmurHash3(time_seed);
     uint particle_seed = MurmurHash3(p_id+1);
     uint particle_seed2 = MurmurHash3(particle_seed);
-    uint time_particle_seed = MurmurHash3(particle_seed + time_seed_2);
+    uint time_particle_seed = MurmurHash3(particle_seed + time_seed2);
     uint time_particle_seed2 = MurmurHash3(particle_seed2 + time_seed);
     uint cell_seed = rotl(time_seed, cell_id);
     
 
     ////////// ------ VELOCITY PERTURBATION ------ //////////
 
-    float3 random_vector = hash(uint3(time_seed_2, particle_seed, cell_seed));
+    float3 random_vector = hash(uint3(time_seed2, particle_seed, cell_seed));
     float3 other_vector = GetOtherVector(average_direction);
     float3 normal_vector = cross(other_vector, average_direction);
     float phi = (float)time_particle_seed2 / (float)0xffffffff * PI * 2; // Random angle
@@ -187,7 +187,9 @@ void OptimizedParticleUpdate (uint3 id : SV_DispatchThreadID)
     BoundToBox(new_position);
 
     // Update particle in buffer
-    particleBuffer[p_id].position = float4(new_position, (float)neighbour_count);
+    float expectedNeighbourCount = particleDensity * 4.0/3.0 * PI * pow(radius, 3);
+    float sqDeviationNeighbourCount = pow((float)neighbour_count - expectedNeighbourCount, 2);
+    particleBuffer[p_id].position = float4(new_position, sqDeviationNeighbourCount);
     particleBuffer[p_id].velocity = float4(new_velocity, particleSize);
 
 

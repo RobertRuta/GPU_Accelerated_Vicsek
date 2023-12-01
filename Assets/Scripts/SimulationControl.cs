@@ -274,6 +274,7 @@ public class SimulationControl : MonoBehaviour {
         ParticleCompute.SetFloat("noise", noise);
         ParticleCompute.SetInt("state", (int)(Time.time*1000 % 255));
         ParticleCompute.SetInts("grid_dims", new [] {grid_dims.x, grid_dims.y, grid_dims.z});
+        ParticleCompute.SetFloat("particleDensity", particleDensity);
     }
 
 
@@ -302,14 +303,15 @@ public class SimulationControl : MonoBehaviour {
         foreach (Particle particle in particles)
         {
             sumVelocity += new Vector3(particle.velocity.x, particle.velocity.y, particle.velocity.z);
-            sqDevNeighbourCount += Math.Pow(particle.position.w - expectedNeighbourCount, 2);
-            maxSqDevNeighbourCount += Math.Pow(particleCount - 1 - expectedNeighbourCount, 2);
+            sqDevNeighbourCount += particle.position.w;
         }
         
-        double stdevNeighbourCounts = Math.Sqrt(sqDevNeighbourCount / particleCount);
-        double maxStdevNeighbourCounts = Math.Sqrt(maxSqDevNeighbourCount / particleCount);
+        maxSqDevNeighbourCount = Math.Pow(particleCount - expectedNeighbourCount, 2);
+        
+        // double stdevNeighbourCounts = Math.Sqrt(sqDevNeighbourCount / particleCount);
+        // double maxStdevNeighbourCounts = Math.Sqrt(maxSqDevNeighbourCount / particleCount);
 
         orderParameter = sumVelocity.magnitude / particles.Length / speed;
-        uniformityParameter = 1 - Math.Log10((double)stdevNeighbourCounts / (double)maxStdevNeighbourCounts);
+        uniformityParameter = 1 - 0.5 * Math.Log10(sqDevNeighbourCount / (particleCount * maxSqDevNeighbourCount));
     }
 }
