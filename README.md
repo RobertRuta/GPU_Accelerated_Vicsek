@@ -4,7 +4,7 @@ This repository is the home of a 3D Vicsek simulation made in Unity with the hel
 
 | ![VicsekDemo_2_gif](https://github.com/RobertRuta/GPU_Accelerated_Vicsek/blob/main/VicsekDemo_2.gif) | ![VicsekDemo_gif](https://github.com/RobertRuta/GPU_Accelerated_Vicsek/blob/main/VicsekDemo.gif) |
 |:-----------------------:|:-----------------------:|
-| Vicsek simulation close to t = 0 start.       | Example of phase separation phenomenon appearing in Vicsek simulation.       |
+| Vicsek simulation close to t = 0.       | Example of phase separation phenomenon appearing in Vicsek simulation.       |
 
 
 
